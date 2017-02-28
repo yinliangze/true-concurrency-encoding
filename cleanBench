@@ -1,0 +1,3 @@
+rm bench/*~
+rm bench/*.smv
+rm bench/*_Boolean.bip

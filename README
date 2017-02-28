@@ -1,0 +1,22 @@
+This is the benchmark for Macro-Step BMC.
+The input models are specified in BIP language, which can be found in the bench directory.
+
+VCS is a tool to extract the micro-step model, the serial step semantics model, and the macro-step model and convert them into SMV format.
+To generate these models for all examples in bench directory, using:
+
+$ ./generateSMVs
+
+For example, for the DPU.bip which have 3 properties, it will generate:
+the micro-step model: DPU.smv
+the serial step semantics model: DPU_StepSemantics.smv
+the macro-step models: DPU_Macro_Prop0.smv, DPU_Macro_Prop1.smv, DPU_Macro_Prop2.smv
+
+Then the zigzag algorithm in NuSMV-2.5.4 can be used to perform the bounded model checking. 
+The NuSMV has been modified that it invokes the zigzag algorithm if you using the -bmc option. 
+For example, to verify the DPU.smv, you should using:
+
+$ ./NuSMV -bmc -bmc_length 200 bench/DPU.smv
+
+all the generated models can be deleted by using:
+$ ./cleanBench
+

@@ -1,0 +1,394 @@
+model dpu
+    port type ePort
+    port type intPort(int[0:7] a)
+    port type int2Port(int[0:7] a, int[0:7] b)
+    port type int3Port(bool a, int[0:7] b, int[0:7] c)
+
+    connector type Singleton(ePort p)
+        define p
+    end
+
+    connector type SyncSensor1Data(intPort syncInt, int3Port serialInt)
+        define syncInt serialInt
+        data int[0:7] newData
+        data int[0:7] oldData
+        on syncInt serialInt
+            up { 
+				newData = syncInt.a; 
+				oldData = serialInt.c; 
+			}
+            down { 
+				serialInt.a = true; 
+				serialInt.b = oldData; 
+				serialInt.c = newData; 
+			}
+    end
+
+    connector type Broadcast(ePort sender, ePort receiver)
+        define sender receiver
+        on sender receiver
+    end
+
+    connector type Transfer2(int2Port sender, int2Port receiver)
+        define sender receiver
+        data int[0:7] a
+        data int[0:7] b
+        on sender receiver
+            up { 
+				a = sender.a; 
+				b = sender.b; 
+			}
+            down { 
+				receiver.a = a; 
+				receiver.b = b; 
+			}
+    end
+
+    connector type Transfer(intPort sender, intPort receiver)
+        define sender receiver
+        data int[0:7] tmp
+        on sender receiver
+            up { 
+				tmp = sender.a; 
+			}
+            down { 
+				receiver.a = tmp; 
+			}
+    end
+
+    connector type Synchronized(ePort port1, ePort port2)
+        define port1 port2
+        on port1 port2
+    end
+
+    connector type ReadSensorData(intPort master, intPort sensor)
+        define master sensor
+        data int[0:7] tmp
+        on master sensor
+            up { 
+				tmp = sensor.a; 
+			}
+            down { 
+				master.a = tmp; 
+			}
+    end
+
+    connector type ReadSensorDataWithMaster(intPort reader, intPort sensor, intPort master)
+        define reader sensor master
+        data int[0:7] tmp
+        on reader sensor master
+            up { 
+				tmp = sensor.a; 
+			}
+            down { 
+				reader.a = tmp; 
+				master.a = tmp; 
+			}
+    end
+
+    atomic type Sensor
+        data int[0:7] x
+
+        export port ePort lock
+        export port intPort read(x)
+
+        place IDLE, LOCK
+        initial to IDLE
+
+		on read from IDLE to IDLE
+		on lock from LOCK to LOCK
+
+        on lock from IDLE to LOCK
+
+        on read from LOCK to IDLE do { 
+			x = x + 1; 
+		}
+    end
+
+    atomic type INT0
+        data int[0:7] s14
+        export port ePort invoke
+        export port ePort lock
+        export port intPort read(s14)
+        export port intPort set(s14)
+        export port ePort ret
+
+        place IDLEC, INVOKED, LOCKED, READC, SET 
+        initial to IDLEC
+
+        on invoke from IDLEC to INVOKED
+        on lock from INVOKED to LOCKED
+        on read from LOCKED to READC
+        on set from READC to SET
+        on ret from SET to IDLEC
+    end
+
+    atomic type INTCOM
+        data int[0:7] s11
+        data int[0:7] s12
+        data int[0:7] s13
+        data int[0:7] s14
+        data int[0:7] a
+        data int[0:7] b
+        data bool TSYNOK
+    
+        port ePort calc
+        port ePort backup
+        export port ePort invoke
+        export port ePort lock
+        export port ePort ret
+        export port intPort read(s14)
+        export port int2Port send(a, b)
+        export port int3Port sync(TSYNOK, s11, s13)
+    
+        place IDLEC
+        place HAS_INT
+        place HAS_LOCK
+        place RECV_MASTER
+        place HAS_GET
+        place HAS_READ_1
+        place HAS_CALC
+        place HAS_SEND
+        place HAS_READ_2
+        place HAS_BACKUP
+        place HAS_UPDATE
+    
+        initial to IDLEC
+    
+        on sync from IDLEC to IDLEC
+
+        on invoke from IDLEC to HAS_INT
+    
+        on lock from HAS_INT to HAS_LOCK
+    
+        on calc from HAS_LOCK to HAS_CALC provided TSYNOK == true do { 
+			a = s13; 
+			b = s11; 
+		}
+
+        on read from HAS_LOCK to HAS_READ_1 provided TSYNOK == false
+    
+        on calc from HAS_READ_1 to HAS_CALC do { 
+			a = s14; 
+			b = s12; 
+		}
+    
+        on send from HAS_CALC to HAS_SEND
+    
+        on backup from HAS_SEND to HAS_BACKUP provided TSYNOK == false do { 
+			s11 = s14; 
+			s12 = s14; 
+			s13 = s14; 
+		}
+    
+        on read from HAS_SEND to HAS_READ_2 provided TSYNOK == true
+    
+        on backup from HAS_READ_2 to HAS_BACKUP do { 
+			s12 = s14; 
+		}
+    
+        on ret from HAS_BACKUP to IDLEC do { 
+			TSYNOK = false; 
+		}
+    end
+
+    atomic type Master
+        data int[0:7] a
+        data int[0:7] b
+        data int[0:7] ra
+        data int[0:7] rb
+        data int[0:7] s11
+        data int[0:7] s12
+        data int[0:7] s13
+        data int[0:7] s14
+        data int[0:7] s15
+        data int[0:7] s16
+        data bool v11
+        data bool v12
+        data bool v13
+        data bool v14
+        data bool v15
+        data bool v16
+
+        export port ePort ret
+        export port ePort idle
+        export port ePort invokeINT0
+        export port ePort invokeINTCOM
+        export port ePort missINT0
+        export port ePort missINTCOM
+        export port ePort lock
+        export port intPort syncReadS11(s11)
+        export port intPort readS11(s11)
+        export port intPort syncReadS12(s12)
+        export port intPort readS12(s12)
+        export port intPort syncReadS13(s13)
+        export port intPort readS13(s13)
+        export port intPort syncReadS14(s14)
+        export port intPort readS14(s14)
+        export port intPort syncReadS15(s15)
+        export port intPort readS15(s15)
+        export port intPort syncReadS16(s16)
+        export port intPort readS16(s16)
+        export port int2Port recv(ra, rb)
+
+        place IDLEC, INT01, INT0_RET1, MISS_INT01, INTCOM1, HAS_RECV1, INTCOM_RET1, MISS_INT0_LOCK1, MISS_INT0_READ1, MISS_INTCOM_LOCK1, MISS_INTCOM_READ1, MISS_INTCOM1
+        place INT02, INT0_RET2, MISS_INT02, INTCOM2, HAS_RECV2, INTCOM_RET2, MISS_INT0_LOCK2, MISS_INT0_READ2, MISS_INTCOM_LOCK2, MISS_INTCOM_READ2, MISS_INTCOM2
+        place INT03, INT0_RET3, MISS_INT03, INTCOM3, HAS_RECV3, INTCOM_RET3, MISS_INT0_LOCK3, MISS_INT0_READ3, MISS_INTCOM_LOCK3, MISS_INTCOM_READ3, MISS_INTCOM3
+
+        initial to IDLEC
+
+        on invokeINT0 from IDLEC to INT01 do { 
+			v11 = true; 
+		}
+        on syncReadS11 from INT01 to INT01
+        on ret from INT01 to INT0_RET1
+
+        on missINT0 from IDLEC to MISS_INT01 do { 
+			v11 = false; 
+		}
+        on lock from MISS_INT01 to MISS_INT0_LOCK1
+        on readS11 from MISS_INT0_LOCK1 to MISS_INT0_READ1
+        on invokeINTCOM from MISS_INT0_READ1 to INTCOM1 do { 
+			v11 = true; 
+		}
+
+        on invokeINTCOM from INT0_RET1 to INTCOM1 do { 
+			v12 = true; 
+		}
+        on syncReadS12 from INTCOM1 to INTCOM1
+        on missINTCOM from INT0_RET1 to MISS_INTCOM1 do { 
+			v12 = false; 
+		}
+        on lock from MISS_INTCOM1 to MISS_INTCOM_LOCK1
+        on readS12 from MISS_INTCOM_LOCK1 to INTCOM_RET1
+
+        on recv from INTCOM1 to HAS_RECV1
+        on syncReadS12 from HAS_RECV1 to HAS_RECV1
+        on ret from HAS_RECV1 to INTCOM_RET1
+
+        ///////////////////////////////////////////////////////////////
+
+        on invokeINT0 from INTCOM_RET1 to INT02 do { 
+			v13 = true; 
+		}
+        on syncReadS13 from INT02 to INT02
+        on ret from INT02 to INT0_RET2
+
+        on missINT0 from INTCOM_RET1 to MISS_INT02 do { 
+			v13 = false; 
+		}
+        on lock from MISS_INT02 to MISS_INT0_LOCK2
+        on readS13 from MISS_INT0_LOCK2 to MISS_INT0_READ2
+        on invokeINTCOM from MISS_INT0_READ2 to INTCOM2 do { 
+			v14 = true; 
+		}
+
+        on invokeINTCOM from INT0_RET2 to INTCOM2 do { 
+			v14 = true; 
+		}
+        on syncReadS14 from INTCOM2 to INTCOM2
+        on missINTCOM from INT0_RET2 to MISS_INTCOM2 do { 
+			v14 = false; 
+		}
+        on lock from MISS_INTCOM2 to MISS_INTCOM_LOCK2
+        on readS14 from MISS_INTCOM_LOCK2 to INTCOM_RET2
+
+        on recv from INTCOM2 to HAS_RECV2
+        on syncReadS14 from HAS_RECV2 to HAS_RECV2
+        on ret from HAS_RECV2 to INTCOM_RET2
+
+
+        on invokeINT0 from INTCOM_RET2 to INT03 do { 
+			v15 = true; 
+		}
+        on syncReadS15 from INT03 to INT03
+        on ret from INT03 to INT0_RET3
+
+        on missINT0 from INTCOM_RET2 to MISS_INT03 do { 
+			v15 = false; 
+		}
+        on lock from MISS_INT03 to MISS_INT0_LOCK3
+        on readS15 from MISS_INT0_LOCK3 to MISS_INT0_READ3
+        on invokeINTCOM from MISS_INT0_READ3 to INTCOM3 do { 
+			v16 = true; 
+		}
+
+        on invokeINTCOM from INT0_RET3 to INTCOM3 do { 
+			v16 = true; 
+		}
+        on syncReadS16 from INTCOM3 to INTCOM3
+        on missINTCOM from INT0_RET3 to MISS_INTCOM3 do { 
+			v16 = false; 
+		}
+        on lock from MISS_INTCOM3 to MISS_INTCOM_LOCK3
+        on readS16 from MISS_INTCOM_LOCK3 to INTCOM_RET3
+
+        on recv from INTCOM3 to HAS_RECV3
+        on syncReadS16 from HAS_RECV3 to HAS_RECV3
+        on ret from HAS_RECV3 to INTCOM_RET3
+        on idle from INTCOM_RET3 to IDLEC
+    end
+
+    compound type Model
+        component Sensor                sensor
+        component INT0                  syncInt
+        component INTCOM                serialInt
+        component Master                master
+
+        connector Broadcast invokeINT0(master.invokeINT0, syncInt.invoke)
+        connector Broadcast invokeINTCOM(master.invokeINTCOM, serialInt.invoke)
+        connector Singleton missINT0(master.missINT0)
+        connector Singleton missINTCOM(master.missINTCOM)
+        connector Synchronized serialRet(serialInt.ret, master.ret)
+        connector Synchronized syncRet(syncInt.ret, master.ret)
+
+        connector ReadSensorDataWithMaster syncRead1(syncInt.read, sensor.read, master.syncReadS11)
+        connector ReadSensorDataWithMaster syncRead3(syncInt.read, sensor.read, master.syncReadS13)
+        connector ReadSensorDataWithMaster syncRead5(syncInt.read, sensor.read, master.syncReadS15)
+        connector ReadSensorData missSyncRead1(master.readS11, sensor.read)
+        connector ReadSensorData missSyncRead3(master.readS13, sensor.read)
+        connector ReadSensorData missSyncRead5(master.readS15, sensor.read)
+
+        connector ReadSensorDataWithMaster serialRead2(serialInt.read, sensor.read, master.syncReadS12)
+        connector ReadSensorDataWithMaster serialRead4(serialInt.read, sensor.read, master.syncReadS14)
+        connector ReadSensorDataWithMaster serialRead6(serialInt.read, sensor.read, master.syncReadS16)
+        connector ReadSensorData missSerialRead2(master.readS12, sensor.read)
+        connector ReadSensorData missSerialRead4(master.readS14, sensor.read)
+        connector ReadSensorData missSerialRead6(master.readS16, sensor.read)
+
+        connector Synchronized syncLock(syncInt.lock, sensor.lock)
+        connector Synchronized serialLock(serialInt.lock, sensor.lock)
+        connector Synchronized masterLock(master.lock, sensor.lock)
+
+        connector Transfer2 masterRecv(serialInt.send, master.recv)
+
+        connector SyncSensor1Data syncData(syncInt.set, serialInt.sync)
+
+        connector Singleton idle(master.idle)
+    end
+
+  component Model t
+  
+  	//==========================================================================
+	// define INVARSPEC property
+	//==========================================================================
+	// if (v15 && v13)
+	//	  ra == s15 & rb == s13;
+	// else if (v16 && v14)
+	//	  ra == s16 & rb == s14;
+	// else if (v16 && v13)
+	//	  ra == s16 & rb == s13;
+	// else if (v15 && v14)
+	//	  ra == s15 & rb == s14;
+	
+	// 原模型
+	INVARSPEC !(master.place == INTCOM_RET3) | ((((master.v15 & master.v13) & ((master.ra == master.s15) & (master.rb == master.s13))) | (!(master.v15 & master.v13) & (((master.v16 & master.v14) & ((master.ra == master.s16) & (master.rb == master.s14))) | (!(master.v16 & master.v14) & (((master.v16 & master.v13) & ((master.ra == master.s16) & (master.rb == master.s13))) | (!(master.v16 & master.v13) & (((master.v15 & master.v14) & ((master.ra == master.s15) & (master.rb == master.s14))) | (!(master.v15 & master.v14) & false)))))))))
+	
+	// 在原模型的基础上添加“v16必须为true“的限制
+	INVARSPEC !((master.place == INTCOM_RET3) & (master.v16 == true)) | ((((master.v15 & master.v13) & ((master.ra == master.s15) & (master.rb == master.s13))) | (!(master.v15 & master.v13) & (((master.v16 & master.v14) & ((master.ra == master.s16) & (master.rb == master.s14))) | (!(master.v16 & master.v14) & (((master.v16 & master.v13) & ((master.ra == master.s16) & (master.rb == master.s13))) | (!(master.v16 & master.v13) & (((master.v15 & master.v14) & ((master.ra == master.s15) & (master.rb == master.s14))) | (!(master.v15 & master.v14) & false)))))))))
+
+	// 在第二个属性的基础上添加“中断不能连续丢失“的限制
+	INVARSPEC !((master.place == INTCOM_RET3) & (master.v16 == true) & !(master.v11 == false & master.v12 == false) & !(master.v12 == false & master.v13 == false) & !(master.v13 == false & master.v14 == false) & !(master.v14 == false & master.v15 == false) & !(master.v15 == false & master.v16 == false)) | ((((master.v15 & master.v13) & ((master.ra == master.s15) & (master.rb == master.s13))) | (!(master.v15 & master.v13) & (((master.v16 & master.v14) & ((master.ra == master.s16) & (master.rb == master.s14))) | (!(master.v16 & master.v14) & (((master.v16 & master.v13) & ((master.ra == master.s16) & (master.rb == master.s13))) | (!(master.v16 & master.v13) & (((master.v15 & master.v14) & ((master.ra == master.s15) & (master.rb == master.s14))) | (!(master.v15 & master.v14) & false)))))))))
+
+  
+end

@@ -1,0 +1,116 @@
+model MonitorCase
+ 	port type ePort
+
+	// synchronize p1 and p2
+	connector type Synchronized_ex(ePort p1, ePort p2)
+		define p1 p2
+		export port ePort p
+	end
+
+	// connect port to outter layer
+	connector type Singleton_ex(ePort e)
+		define e
+		export port ePort p
+	end
+	
+	// synchronize p1 and p2
+	connector type Synchronized(ePort p1, ePort p2)
+		define p1 p2
+	end
+
+	// connect port to outter layer
+	connector type Singleton(ePort e)
+		define e
+	end
+
+	atomic type C1
+		data int[0:15] C 
+
+		export port ePort P1
+		export port ePort P2
+		export port ePort PR
+
+		place S1
+		place S2
+ 
+		initial to S1 do {
+			C = 10;
+		}
+
+		on P1 from S1 to S2 do {
+			C = C - 1;
+		}
+		on P2 from S2 to S1 provided !(C == 0)
+		on PR from S2 to S2 provided (C == 0) do {
+			C = 10;
+		}
+	end
+
+	atomic type C2	
+		export port ePort P3
+		export port ePort P4
+
+		place S3
+		place S4
+
+		initial to S3
+
+		on P3 from S3 to S4
+		on P4 from S4 to S3
+	end
+
+	atomic type Monitor
+		data int[0:15] M 
+
+		export port ePort rst
+		export port ePort run
+		export port ePort toerr
+
+		place work
+		place err
+
+		initial to work do {
+			M = 10;
+		}
+
+		// provided M == 0 do {M = 10;}
+		on rst from work to work provided (M == 0) do {
+			M = 10;
+		}
+		on run from work to work do {
+			M = M - 1;
+		}
+		// provided M < 0
+		on toerr from work to err provided (M == 15)
+	end
+
+	compound type C1C2
+		component C1 c1
+		component C2 c2
+
+		connector Synchronized_ex P13(c1.P1, c2.P3)
+		connector Singleton_ex Pr(c1.PR)
+//		connector Synchronized_ex P24(c1.P2, c2.P4)
+		connector Singleton P2(c1.P2)
+	
+		connector Singleton P4(c2.P4)
+		
+		export port ePort C1C2_P1P3 is P13
+		export port ePort C1C2_PR is Pr		
+	end
+
+	compound type FullModel
+		component Monitor moni
+		component C1C2 c1c2
+
+		connector Synchronized    FullReset(c1c2.C1C2_PR, moni.rst)
+		connector Synchronized    FullRun(c1c2.C1C2_P1P3, moni.run)
+
+		connector Singleton TE(moni.toerr)
+
+	end	
+
+    component FullModel fm
+
+	INVARSPEC !(moni.place == err)
+end

@@ -1,0 +1,732 @@
+// =======================================================================
+// Author		: ylz08
+// Last Update	: 2012-08-02
+// Description	: TCN��RTPЭ��Ĵ���㲿��
+// Note			: �������û�ȡ��cancelled��, �Լ���ʱ����TMO��
+//                �����粿�֣�û���Ƿ���˳��1,2,3�����հ�˳��ȴ��2,3,1�����
+// =======================================================================
+model RTP
+
+	//---------------------------------------------------------------------------------
+	// Port types
+	//---------------------------------------------------------------------------------
+	port type ePort
+	port type int4Port 	(int[0:15] a)
+	port type int4Port2	(int[0:15] a, bool b)
+	port type int2Port	(int[0:3] a)
+	port type int2Port2	(int[0:3] a, bool b)
+	
+	//---------------------------------------------------------------------------------
+	// Connector types
+	//---------------------------------------------------------------------------------
+	connector type single(ePort p)
+		define p
+	end
+
+	connector type ePortSync(ePort p1, ePort p2)
+		define p1 p2
+	end
+	
+	connector type int2PortTransfer(int2Port src, int2Port dest)
+		define src dest
+		on src dest
+			up {
+			}
+			down{
+				dest.a = src.a;
+			}
+	end
+	
+	connector type int2Port2Transfer(int2Port2 src, int2Port2 dest)
+		define src dest
+		on src dest
+			up {
+			}
+			down{
+				dest.a = src.a;
+				dest.b = src.b;
+			}
+	end
+	
+	connector type int4PortTransfer(int4Port src, int4Port dest)
+		define src dest
+		on src dest
+			up {
+			}
+			down{
+				dest.a = src.a;
+			}
+	end
+
+	
+	connector type int4Port2Transfer(int4Port2 src, int4Port2 dest)
+		define src dest
+		on src dest
+			up {
+			}
+			down{
+				dest.a = src.a;
+				dest.b = src.b;
+			}
+	end
+	
+	//---------------------------------------------------------------------------------
+	// Atomic types
+	//---------------------------------------------------------------------------------
+	// ����ߵ���Ϊģ��
+	atomic type Producer
+	
+		// ����ߵľֲ�����
+		data int[0:3]  	run_nr
+		data bool 		cancelled		
+		data int[0:15]	expected
+		data int[0:3]	conn_ref
+		data int[0:3]	CC_conn_ref
+		data int[0:3]	rep_cnt
+		data int[0:15]  next_send
+		data int[0:15]  send_not_yet
+		data bool 		eot
+		data int[0:15]  AK_seq_nr
+		data int[0:15]  NK_seq_nr
+		data bool		tm_send_cnf
+		data bool		am_result
+		data int[0:15]  seq_nr
+		data bool		CFALSE
+		
+		data int[0:15]	credit
+		data int[0:3]	MAX_REP_CNT
+		data int[0:15]  PACKET_NUM
+		data int[0:15]  tmp
+		
+		// ������е��¼�
+		export port ePort 		tm_send_req
+		export port	ePort		cancel_req
+		export port ePort		TMO
+		export port ePort		inner
+
+		export port int2Port2 	send_CR		(conn_ref, eot)
+		export port int2Port	rcv_CC		(CC_conn_ref)
+		export port int4Port2	send_DT		(next_send, eot)	
+		export port int4Port	rcv_AK		(AK_seq_nr)
+		export port int4Port 	rcv_NK		(NK_seq_nr)
+		export port ePort		send_DR
+		export port ePort		send_DC
+		export port ePort		rcv_DR	
+		export port ePort		rcv_DC
+		
+		
+		// ����ߵ�״̬�б�
+		place DISC, SETUP, SEND, SEND_CANC, CLOSED
+		place DISCSETUP, DISCEND, XEND, UDEOT1, SEND_READY, SENDING, SEND_READY_NK, SENDING_NK, SEND_CR, SEND_DC, REP_SEND, SEND_DR, RCV_AK, RCV_NK, RCV_CC
+		
+		// ��ʼ״̬
+		initial to DISC do {
+			CFALSE			= false;
+			tm_send_cnf 	= false;
+
+			credit			= 3;
+			MAX_REP_CNT		= 3;
+			PACKET_NUM		= 3;
+		}
+		
+		// Ǩ��
+		on tm_send_req 	from DISC 		to DISCSETUP do {
+			eot 		= (PACKET_NUM == 1);			
+		}
+		
+		on send_CR		from DISCSETUP	to SETUP do {
+			conn_ref 	= run_nr;
+			run_nr 		= run_nr + 1;
+			expected	= 0;
+			rep_cnt		= 0;
+			cancelled	= false;
+		}
+		
+		on rcv_DR		from SETUP		to DISCEND do {
+			tm_send_cnf	= !cancelled;
+			am_result	= false;
+		}
+
+		on rcv_CC		from SETUP		to RCV_CC
+
+		on inner		from RCV_CC		to SETUP provided !(conn_ref == CC_conn_ref)
+		
+		on inner		from RCV_CC		to DISCEND provided ((conn_ref == CC_conn_ref) & (eot == true)) do {
+			tm_send_cnf	= !cancelled;
+			am_result	= true;
+		}
+		
+		on inner 		from RCV_CC		to SEND_READY provided ((conn_ref == CC_conn_ref) & (eot == false)) do {
+			next_send	= 0;
+			send_not_yet	= credit;	
+		}
+		
+		on send_DR		from SEND_READY	to SEND_CANC provided cancelled == true do {
+			rep_cnt		= 0;
+		}
+		
+		on inner 		from SEND_READY to SENDING provided cancelled == false do {
+			eot 		= (next_send == PACKET_NUM);
+		}
+		
+		on send_DT		from SENDING	to SENDING 	provided !(eot | (next_send == send_not_yet)) do{	
+			next_send	= next_send + 1;
+			eot 		= (next_send == PACKET_NUM);			
+		}
+		
+		on inner		from SENDING	to SEND provided (eot | (next_send == send_not_yet)) do {
+			rep_cnt = 0;
+		}
+	
+		on TMO			from SETUP		to DISCEND provided rep_cnt == MAX_REP_CNT do{
+			tm_send_cnf	=  !cancelled;
+			am_result	= false;
+		}
+		
+		on TMO			from SETUP		to SEND_CR provided rep_cnt < MAX_REP_CNT
+		
+		on send_CR		from SEND_CR	to SETUP do {
+			rep_cnt = rep_cnt + 1;
+		}
+		
+		on rcv_DR		from SEND		to SEND_DC
+		
+		on send_DC		from SEND_DC	to CLOSED
+		
+		on rcv_AK		from SEND		to RCV_AK
+
+		on inner		from RCV_AK		to SEND provided (!(expected < AK_seq_nr & AK_seq_nr <= send_not_yet)) | (expected < AK_seq_nr & AK_seq_nr <= send_not_yet & eot & !(AK_seq_nr == next_send))
+
+		on inner		from RCV_AK		to SEND_READY provided (expected < AK_seq_nr & AK_seq_nr <= send_not_yet & !eot) do {
+			expected 		= AK_seq_nr;
+			send_not_yet	= expected + credit;
+		}
+		
+		on inner		from RCV_AK		to DISCEND provided (expected < AK_seq_nr & AK_seq_nr <= send_not_yet & eot & AK_seq_nr == next_send) do {
+			expected 		= AK_seq_nr;
+			send_not_yet	= expected + credit;
+			tm_send_cnf		= !cancelled;
+			am_result		= true;
+		}
+		
+		on TMO			from SEND		to REP_SEND provided rep_cnt < MAX_REP_CNT do {
+			seq_nr			= expected;
+			tmp				= next_send - 1;
+		}
+		
+		on send_DT		from REP_SEND	to REP_SEND	provided seq_nr < tmp do {
+			seq_nr 			= seq_nr + 1;
+		}
+		
+		on send_DT		from REP_SEND	to SEND provided seq_nr == tmp do {
+			rep_cnt			= rep_cnt + 1;
+		}
+		
+		on TMO			from SEND		to DISCEND provided rep_cnt == MAX_REP_CNT do {
+			tm_send_cnf		= !cancelled;
+			am_result		= false;
+		}
+		
+		on rcv_NK		from SEND		to RCV_NK
+
+		on inner 		from RCV_NK		to SEND_READY_NK provided (expected <= NK_seq_nr & NK_seq_nr <= send_not_yet) do {
+			expected		= NK_seq_nr;
+			send_not_yet	= expected + credit;
+			next_send		= NK_seq_nr;
+		}
+
+		on inner		from RCV_NK		to SEND provided !(expected <= NK_seq_nr & NK_seq_nr <= send_not_yet)
+		
+		on send_DR		from SEND_READY_NK	to SEND_CANC provided cancelled == true
+		
+		on inner		from SEND_READY_NK 	to SENDING_NK provided cancelled == false
+
+		on inner		from SENDING_NK		to UDEOT1 provided (!eot & !(next_send == send_not_yet)) do {
+			eot 		= (next_send == PACKET_NUM);
+		}			
+		
+		on send_DT		from UDEOT1	to SENDING_NK  do{
+			next_send	= next_send + 1;
+		}
+		
+		on inner		from SENDING_NK	to SEND	provided (eot | (next_send == send_not_yet))
+		
+		on rcv_DC		from SEND_CANC	to DISCEND do {
+			tm_send_cnf		= !cancelled;
+			am_result		= false;
+		}
+		
+		on rcv_DR		from SEND_CANC	to CLOSED
+		
+		on TMO			from SEND_CANC	to DISCEND provided rep_cnt == MAX_REP_CNT do {
+			tm_send_cnf		= !cancelled;
+			am_result		= false;
+		}
+		
+		on TMO			from SEND_CANC	to SEND_DR provided rep_cnt < MAX_REP_CNT
+		
+		on send_DR		from SEND_DR	to SEND_CANC do {
+			rep_cnt			= rep_cnt + 1;
+		}
+		
+		on TMO			from CLOSED		to DISCEND do{
+			tm_send_cnf		= !cancelled;
+			am_result		= false;
+		}
+		
+		on cancel_req 	from SETUP		to SETUP 		provided cancelled == false do { cancelled = true; }
+		on cancel_req 	from SEND		to SEND 		provided cancelled == false do { cancelled = true; }
+		on cancel_req 	from SEND_CANC	to SEND_CANC 	provided cancelled == false do { cancelled = true; }		
+		on cancel_req 	from CLOSED		to CLOSED 		provided cancelled == false do { cancelled = true; }
+	
+		on inner		from DISCEND	to XEND
+	end
+	
+	// ����ߵ���Ϊģ��
+	atomic type Consumer
+	
+		// ����ߵľֲ�����
+		data bool 		cancelled
+		data int[0:3]	conn_ref
+		data int[0:3]	CR_conn_ref
+		data int[0:15]  expected		
+		data int[0:3]	rep_cnt
+		data int[0:3]	new_cnt		
+		data int[0:15]  DT_seq_nr
+		data bool 		tm_receive_ind
+		data bool 		am_result
+		data bool 		eot
+		data bool 		err	
+		
+		data int[0:3]	credit
+		data int[0:3]	MAX_REP_CNT	
+		
+		// ������е��¼�
+		export port	ePort		cancel_req
+		export port	ePort		tm_connect_ind
+		export port ePort		TMO
+		export port ePort		inner
+
+		export port int2Port2 	rcv_CR		(CR_conn_ref, eot)
+		export port int2Port	send_CC		(conn_ref)
+		export port int4Port2	rcv_DT		(DT_seq_nr, eot)
+		export port int4Port	send_AK		(expected)
+		export port int4Port 	send_NK		(expected)
+		export port ePort		send_DR
+		export port ePort		send_DC
+		export port ePort		rcv_DR
+		export port ePort		rcv_DC
+		
+		// ����ߵ�״̬�б�
+		place DISC, LISTEN, RECEIVE, PEND_ACK, FROZEN, LISTEN_FROZEN, RCV_CANC
+		place SEND_DC, DISCEND, XEND, RCV_CR, RCV_CR_LF, BEFORE_IND, AFTER_IND, BEFORE_SEND_CC, SEND_CC1, SEND_CC2, SEND_CC3, RCV_DATA, RCV_DT, SEND_DR, SEND_DC1, AFTER_RCV_DT1, AFTER_RCV_DT2, AFTER_RCV_DT3, PEND_TMO, RCV_CANC_TMO
+		
+		// ��ʼ״̬
+		initial to DISC do {
+			tm_receive_ind	= false;
+			
+			credit		= 3;
+			MAX_REP_CNT	= 3;
+			rep_cnt		= 0;
+		}
+		
+		// Ǩ��
+		on rcv_DR			from DISC			to SEND_DC
+		
+		on send_DC			from SEND_DC		to DISCEND
+		
+		on rcv_CR			from DISC			to RCV_CR
+		
+		on rcv_CR			from FROZEN			to RCV_CR
+		
+		on rcv_CR			from LISTEN_FROZEN	to RCV_CR_LF
+
+		on inner			from RCV_CR_LF		to LISTEN_FROZEN provided (CR_conn_ref == conn_ref)
+
+		on inner			from RCV_CR_LF		to RCV_CR provided !(CR_conn_ref == conn_ref)
+		
+		on inner			from RCV_CR			to BEFORE_IND do {
+			cancelled 	= false;
+			new_cnt		= 0;
+			expected	= 0;
+		}
+		
+		on tm_connect_ind	from BEFORE_IND		to AFTER_IND do {
+			err			= true;
+		}
+		
+		on tm_connect_ind	from BEFORE_IND		to AFTER_IND do {
+			err			= false;
+		}
+		
+		on inner			from AFTER_IND		to BEFORE_SEND_CC provided err == false do{
+			conn_ref	= CR_conn_ref;
+		}
+		
+		on send_CC			from BEFORE_SEND_CC	to SEND_CC1
+		
+		on inner			from SEND_CC1		to LISTEN_FROZEN provided eot == true do {
+			tm_receive_ind	= !cancelled;
+			am_result		= true;
+		}
+		
+		on inner			from SEND_CC1		to LISTEN provided eot == false
+		
+		on send_DR			from AFTER_IND		to DISCEND provided err == true
+		
+		on rcv_CR			from LISTEN_FROZEN	to SEND_CC2 
+
+		on inner			from SEND_CC2		to LISTEN_FROZEN provided !(CR_conn_ref == conn_ref)
+		
+		on send_CC			from SEND_CC2		to LISTEN_FROZEN provided CR_conn_ref == conn_ref
+		
+		on inner 			from FROZEN			to DISCEND
+		
+		on inner			from LISTEN_FROZEN	to DISCEND
+		
+		on rcv_CR			from LISTEN			to SEND_CC3
+
+		on send_CC			from SEND_CC3		to LISTEN  provided CR_conn_ref == conn_ref
+		
+		on inner			from SEND_CC3		to DISCEND provided !(CR_conn_ref == conn_ref) do {
+			tm_receive_ind	= !cancelled;
+			am_result		= false;
+		}
+		
+		on TMO				from LISTEN			to DISCEND do {
+			tm_receive_ind	= !cancelled;
+			am_result		= false;
+		}
+		
+		on inner			from LISTEN			to RCV_DATA
+		
+		on inner			from RECEIVE		to RCV_DATA
+		
+		on inner			from PEND_ACK		to RCV_DATA
+		
+		on rcv_DR			from RCV_DATA		to SEND_DC1
+		
+		on send_DC			from SEND_DC1		to DISCEND do {
+			tm_receive_ind	= !cancelled;
+			am_result		= false;
+		}
+		
+		on rcv_DT			from RCV_DATA		to RCV_DT
+
+		on inner			from RCV_DT			to SEND_DR provided cancelled == true
+		
+		on send_DR			from SEND_DR		to RCV_CANC do {
+			rep_cnt			= 0;
+		}
+		
+		on inner			from RCV_DT			to AFTER_RCV_DT1 provided (!cancelled & (DT_seq_nr == expected)) do {
+			expected		= expected + 1;
+			new_cnt			= new_cnt + 1;
+		}
+		
+		on send_AK 			from AFTER_RCV_DT1	to FROZEN provided eot == true do {
+			tm_receive_ind	= !cancelled;
+			am_result		= true;
+		}
+
+		on send_AK			from AFTER_RCV_DT1	to RECEIVE provided ((eot == false) & (new_cnt == credit)) do {
+			new_cnt			= 0;
+		}	
+
+		on inner 			from AFTER_RCV_DT1	to PEND_ACK provided ((eot == false) & !(new_cnt == credit))
+		
+		on inner			from RCV_DT			to AFTER_RCV_DT2 provided (!cancelled & !(DT_seq_nr == expected))
+		
+		on send_NK			from AFTER_RCV_DT2	to RECEIVE do {
+			new_cnt = 0;
+		}
+		
+		on TMO				from RECEIVE		to DISCEND	do {
+			tm_receive_ind	= !cancelled;
+			am_result		= false;
+		}
+		
+		on TMO				from PEND_ACK		to PEND_TMO
+		
+		on send_AK			from PEND_TMO		to RECEIVE do {
+			new_cnt			= 0;
+		}
+		
+		on rcv_DT			from FROZEN			to AFTER_RCV_DT3
+		
+		on send_AK			from AFTER_RCV_DT3	to FROZEN
+		
+		on TMO				from RCV_CANC		to RCV_CANC_TMO provided rep_cnt < MAX_REP_CNT
+		
+		on send_DR			from RCV_CANC_TMO	to RCV_CANC do {
+			rep_cnt			= rep_cnt + 1;
+		}
+		
+		on TMO				from RCV_CANC		to DISCEND provided rep_cnt == MAX_REP_CNT do {
+			tm_receive_ind	= !cancelled;
+			am_result		= false;
+		}
+		
+		on rcv_DR			from RCV_CANC		to  DISCEND do {
+			tm_receive_ind	= !cancelled;
+			am_result		= false;
+		}
+		
+		on rcv_DC			from RCV_CANC		to  DISCEND do {
+			tm_receive_ind	= !cancelled;
+			am_result		= false;
+		}
+		
+		on cancel_req 	from LISTEN			to LISTEN 			provided cancelled == false do { cancelled = true; }
+		on cancel_req 	from RECEIVE		to RECEIVE 			provided cancelled == false do { cancelled = true; }
+		on cancel_req 	from PEND_ACK		to PEND_ACK 		provided cancelled == false do { cancelled = true; }		
+		on cancel_req 	from FROZEN			to FROZEN 			provided cancelled == false do { cancelled = true; }
+		on cancel_req 	from LISTEN_FROZEN	to LISTEN_FROZEN 	provided cancelled == false do { cancelled = true; }		
+		on cancel_req 	from RCV_CANC		to RCV_CANC 		provided cancelled == false do { cancelled = true; }
+
+		on inner		from DISCEND	to XEND	
+	end
+
+	// �������Ϊģ��
+	atomic type Network
+		// ��Ӧ���͵�����ı�־
+		data bool CR_Flag
+		data bool CC_Flag
+		data bool DT_Flag
+		data bool AK_Flag
+		data bool NK_Flag
+		data bool P_DR_Flag
+		data bool P_DC_Flag
+		data bool C_DR_Flag
+		data bool C_DC_Flag
+		
+		// ����CR���
+		data int[0:3]	Net_CR_conn_ref
+		data bool		Net_CR_eot
+
+		// ����CC���
+		data int[0:3]	Net_CC_conn_ref
+
+		//����DT���
+		data int[0:15]	Net_DT_seq_nr
+		data bool		Net_DT_eot
+
+		// ����AK,NK���
+		data int[0:15]	Net_AK_seq_nr
+		data int[0:15]	Net_NK_seq_nr
+
+		export port int2Port2 rcv_CR_From_Producer(Net_CR_conn_ref, Net_CR_eot)
+		export port int2Port2 send_CR_To_Consumer (Net_CR_conn_ref, Net_CR_eot)
+		export port int2Port rcv_CC_From_Consumer(Net_CC_conn_ref)
+		export port int2Port send_CC_To_Producer (Net_CC_conn_ref)
+		export port int4Port2 rcv_DT_From_Producer(Net_DT_seq_nr, Net_DT_eot)
+		export port int4Port2 send_DT_To_Consumer (Net_DT_seq_nr, Net_DT_eot)
+		export port int4Port  rcv_AK_From_Consumer(Net_AK_seq_nr)
+		export port int4Port  send_AK_To_Producer (Net_AK_seq_nr)
+		export port int4Port  rcv_NK_From_Consumer(Net_NK_seq_nr)
+		export port int4Port  send_NK_To_Producer (Net_NK_seq_nr)
+		export port ePort	 rcv_DR_From_Producer
+		export port ePort    send_DR_To_Consumer
+		export port ePort	 rcv_DC_From_Producer
+		export port ePort    send_DC_To_Consumer
+		export port ePort	 rcv_DR_From_Consumer
+		export port ePort    send_DR_To_Producer
+		export port ePort	 rcv_DC_From_Consumer
+		export port ePort    send_DC_To_Producer
+		export port ePort	 missed
+
+		place LX, LN
+	
+		initial to LX do{
+			CR_Flag		= false;
+			CC_Flag		= false;
+			DT_Flag		= false;
+			AK_Flag		= false;
+			NK_Flag		= false;
+			P_DR_Flag	= false;
+			P_DC_Flag	= false;
+			C_DR_Flag	= false;
+			C_DC_Flag	= false;
+		}
+
+		on rcv_CR_From_Producer from LX to LN do {
+			CR_Flag		= true;
+		}
+
+		on rcv_CC_From_Consumer from LX to LN do {
+			CC_Flag		= true;
+		}
+
+		on rcv_DT_From_Producer from LX to LN do {
+			DT_Flag		= true;
+		}
+
+		on rcv_AK_From_Consumer from LX to LN do {
+			AK_Flag		= true;
+		}
+
+		on rcv_NK_From_Consumer from LX to LN do {
+			NK_Flag		= true;
+		}
+
+		on rcv_DR_From_Producer from LX to LN do {
+			P_DR_Flag	= true;
+		}
+
+		on rcv_DC_From_Producer from LX to LN do {
+			P_DC_Flag	= true;
+		}
+
+		on rcv_DR_From_Consumer from LX to LN do {
+			C_DR_Flag	= true;
+		}
+
+		on rcv_DC_From_Consumer from LX to LN do {
+			C_DC_Flag	= true;
+		}
+
+		on send_CR_To_Consumer from LN to LX provided CR_Flag == true do {
+			CR_Flag		= false;
+		}
+
+		on send_CC_To_Producer from LN to LX provided CC_Flag == true do {
+			CC_Flag		= false;
+		}
+
+		on send_DT_To_Consumer from LN to LX provided DT_Flag == true do {
+			DT_Flag		= false;
+		}
+
+		on send_AK_To_Producer from LN to LX provided AK_Flag == true do {
+			AK_Flag		= false;
+		}
+
+		on send_NK_To_Producer from LN to LX provided NK_Flag == true do {
+			NK_Flag		= false;
+		}
+
+		on send_DR_To_Consumer from LN to LX provided P_DR_Flag == true do {
+			P_DR_Flag	= false;
+		}
+
+		on send_DC_To_Consumer from LN to LX provided P_DC_Flag == true do {
+			P_DC_Flag	= false;
+		}
+
+		on send_DR_To_Producer from LN to LX provided C_DR_Flag == true do {
+			C_DR_Flag	= false;
+		}
+
+		on send_DC_To_Producer from LN to LX provided C_DC_Flag == true do {
+			C_DC_Flag	= false;
+		}
+		
+		on missed			   from LN to LX do {
+			CR_Flag		= false;
+			CC_Flag		= false;
+			DT_Flag		= false;
+			AK_Flag		= false;
+			NK_Flag		= false;
+			P_DR_Flag	= false;
+			P_DC_Flag	= false;
+			C_DR_Flag	= false;
+			C_DC_Flag	= false;
+		}
+
+
+
+	end
+	
+	
+	//---------------------------------------------------------------------------------
+	// Compound types
+	//---------------------------------------------------------------------------------
+	compound type Session
+		component Producer producer
+		component Consumer consumer
+		component Network  network
+		
+		// send CR
+		connector int2Port2Transfer sendCR_P2N1(producer.send_CR, 			network.rcv_CR_From_Producer)
+		connector int2Port2Transfer sendCR_N2C1(network.send_CR_To_Consumer, consumer.rcv_CR)
+		
+		// send CC
+		connector int2PortTransfer sendCC_C2N1(consumer.send_CC, 			network.rcv_CC_From_Consumer)
+		connector int2PortTransfer sendCC_N2P(network.send_CC_To_Producer,	producer.rcv_CC)
+		
+		// send DT
+		connector int4Port2Transfer sendDT1_P2N1(producer.send_DT, 			network.rcv_DT_From_Producer)
+		connector int4Port2Transfer sendDT_N2C1 (network.send_DT_To_Consumer,consumer.rcv_DT)
+		
+		// send AK
+		connector int4PortTransfer  sendAK_C2N1(consumer.send_AK, 			network.rcv_AK_From_Consumer)
+		connector int4PortTransfer  sendAK_N2P(network.send_AK_To_Producer,	producer.rcv_AK)
+
+		// send NK
+		connector int4PortTransfer  sendNK_C2N(consumer.send_NK, 			network.rcv_NK_From_Consumer)
+		connector int4PortTransfer  sendNK_N2P(network.send_NK_To_Producer,	producer.rcv_NK)
+		
+		// send DR from producer to consumer
+		connector ePortSync    sendDR_P2N1(producer.send_DR, 			network.rcv_DR_From_Producer)
+		connector ePortSync    sendDR_N2C1(network.send_DR_To_Consumer,	consumer.rcv_DR)
+
+		// send DC from producer to consumer
+		connector ePortSync    sendDC_P2N(producer.send_DC, 			network.rcv_DC_From_Producer)
+		connector ePortSync    sendDC_N2C(network.send_DC_To_Consumer,	consumer.rcv_DC)
+
+		// send DR from consumer to producer
+		connector ePortSync    sendDR_C2N1(consumer.send_DR, 			network.rcv_DR_From_Consumer)
+		connector ePortSync    sendDR_N2P1(network.send_DR_To_Producer,	producer.rcv_DR)
+
+		// send DC from consumer to producer
+		connector ePortSync    sendDC_C2N1(consumer.send_DC, 			network.rcv_DC_From_Consumer)
+		connector ePortSync    sendDC_N2P(network.send_DC_To_Producer,	producer.rcv_DC)
+
+		// inner transitions of producer
+		connector single	   P_tm_send_req(producer.tm_send_req)
+		connector single	   P_cancel_req(producer.cancel_req)
+		connector single	   P_tmo(producer.TMO)
+		connector single	   P_inner(producer.inner)
+
+		// inner transitions of consumer
+		connector single	   C_tm_connect_ind(consumer.tm_connect_ind)
+		connector single	   C_cancel_req(consumer.cancel_req)
+		connector single	   C_tmo(consumer.TMO)
+		connector single	   C_inner(consumer.inner)
+		
+		// inner transitions of network
+		connector single	   N_missed(network.missed)
+	end
+	
+	component Session t
+	
+	//yes Y属性1：对生产者，当模型到达DISCEND状态时，且生产者没有取消，则tm_send_cnf必须为true
+	//	   (该属性成立)
+	//INVARSPEC !(producer.place == DISCEND & producer.cancelled == false) | (producer.tm_send_cnf == true)
+
+	// *属性2：对消费者，当模型到达DISCEND状态时，若消费者没有取消， 且err = false, 则tm_receive_ind都必须为true
+	//INVARSPEC !((consumer.place == DISCEND) & (consumer.cancelled == false) & (consumer.err == false)) | (consumer.tm_receive_ind == true)
+
+	//no N属性3：若生产者消费者都没有取消，err = false, 且生产者的rep_cnt = 3, 或消费者的rep_cnt == 3, 则当生产者或消费在到达DISCEND状态时，其am_result = false;
+	//         (会重发4次)
+	//INVARSPEC !((producer.cancelled == false) & (consumer.cancelled == false) & (consumer.err == false) & ((producer.rep_cnt == 3) | (consumer.rep_cnt == 3))) | ((!(producer.place == DISCEND) | (producer.am_result == false)) & (!(consumer.place == DISCEND) | (consumer.am_result == false)))
+
+
+	//yes N属性4：当生产者和消费者都到达DISEND状态后，若tm_send_cnf和tm_receive_ind都为true，则producer.am_result = consumer.am_result
+	//	  （该属性不成立，如果生产者在消息发送完之后的SEND状态再调用cancell, 则消费者的am_result = true，则消费者的tm_receive_ind和am_result都为true，但生产者的tm_send_cnf为false）
+	INVARSPEC !((producer.place == DISCEND) & (consumer.place == DISCEND)) | (((producer.tm_send_cnf == true) & (producer.am_result == true)) == ((consumer.tm_receive_ind == true) & (consumer.am_result == true)))
+
+
+	//yes N *属性5：当生产者和消费者都到达DISEND状态后，若tm_send_cnf和tm_receive_ind都为true，则producer.am_result = consumer.am_result
+	INVARSPEC !((producer.place == DISCEND) & (consumer.place == DISCEND) & (producer.tm_send_cnf == true) & (consumer.tm_receive_ind == true)) | (producer.am_result == consumer.am_result)
+
+
+	//yes N属性6：若消费者没有取消，但生产者有取消，且消费者的err=false, 则当消费者到达DISCEND状态时，其am_result = false;
+	//        (该属性不成立，如果生产者在消息发送完之后的SEND状态再调用cancell, 则消费者的am_result = true)
+	INVARSPEC !((consumer.place == DISCEND) & (consumer.cancelled == false) & (consumer.err == false) & (producer.cancelled == true)) | (consumer.am_result == false)
+
+	//yes N *属性7：若生产者没有取消，但消费者有取消，则当生产者到达DISCEND状态时，其am_result = false;
+	INVARSPEC !((producer.place == DISCEND) & (producer.cancelled == false) & (consumer.cancelled == true)) | (producer.am_result == false)
+	
+		
+end

@@ -1,0 +1,273 @@
+model AutomaticCallback
+	port type ePort
+	
+	connector type single(ePort p)
+		define p
+	end
+	
+	connector type sync(ePort p1, ePort p2)
+		define p1 p2
+		on p1 p2
+			up{
+			}
+			down{
+			}
+	end
+	
+	atomic type Caller
+		export port ePort ac
+		export port ePort ringa
+		export port ePort answera
+		export port ePort noanswera
+		export port ePort hangupa
+		export port ePort busytonea
+		export port ePort connect
+		export port ePort onhooka
+		
+		place Idle, Ringing, Calling, Waiting, Talking
+		
+		initial to Idle
+		
+		on ac			from Idle		to Waiting
+		on ringa		from Waiting	to Ringing
+		on answera		from Ringing	to Calling
+		on noanswera	from Ringing	to Idle
+		on hangupa		from Calling	to Idle
+		on busytonea	from Calling	to Waiting
+		on connect		from Calling	to Talking
+		on onhooka		from Talking	to Idle
+	end
+	
+	atomic type Callee
+		export port ePort available
+		export port ePort checkb
+		export port ePort ringb
+		export port ePort stopringb
+		export port ePort answerb
+		export port ePort offhookb
+		export port ePort onhookb
+		export port ePort busyb
+		
+		place Onhook, Ring, Offkook, Checkb1, Checkb2, Ringb
+		
+		initial to Onhook
+		
+		on checkb		from Onhook		to Checkb1
+		on ringb		from Onhook		to Ring
+		on offhookb		from Onhook		to Offkook
+		on available 	from Checkb1	to Onhook
+		on stopringb	from Ring		to Onhook
+		on answerb		from Ring		to Offkook
+		on onhookb		from Offkook	to Onhook
+		on checkb		from Offkook	to Checkb2
+		on ringb		from Offkook	to Ringb
+		on busyb		from Checkb2	to Offkook
+		on busyb		from Ringb		to Offkook
+	end
+	
+	atomic type Agent
+		export port ePort ac
+		export port ePort checkb
+		export port ePort available
+		export port ePort busyb
+		export port ePort ringa
+		export port ePort answera
+		export port ePort noanswera
+		export port ePort ringb
+		export port ePort busytonea
+		export port ePort busyb
+		export port ePort answerb
+		export port ePort connect
+		export port ePort hangupa
+		export port ePort stopringb
+		
+		place Idle, Ac, CheckB, Available, Camp, RingA, Answera, Answerb, RingB, Busyb, Hangupa
+		
+		initial to Idle
+		
+		on ac 			from Idle 		to Ac
+		on checkb 		from Ac			to CheckB
+		on available 	from CheckB		to Available
+		on busyb		from CheckB		to Camp
+		on checkb		from Camp		to CheckB
+		on ringa		from Available	to RingA
+		on answera		from RingA		to Answera
+		on noanswera	from RingA		to Idle
+		on ringb		from Answera	to RingB
+		on busyb		from RingB		to Busyb
+		on hangupa		from RingB		to Hangupa
+		on answerb		from RingB		to Answerb
+		on busytonea	from Busyb		to Camp
+		on connect		from Answerb	to Idle
+		on stopringb	from Hangupa	to Idle
+	end
+	
+	compound type system
+		component Caller caller1
+		component Caller caller2
+		component Caller caller3
+		component Caller caller4
+		component Caller caller5
+		component Caller caller6
+		component Callee callee1
+		component Callee callee2
+		component Callee callee3
+		component Callee callee4
+		component Callee callee5
+		component Callee callee6
+		component Agent agent
+
+		connector sync c1_ac		(caller1.ac,		agent.ac)
+		connector sync c1_ringa		(caller1.ringa,		agent.ringa)
+		connector sync c1_answera	(caller1.answera,	agent.answera)
+		connector sync c1_noanswera	(caller1.noanswera,	agent.noanswera)
+		connector sync c1_hangupa	(caller1.hangupa,	agent.hangupa)
+		connector sync c1_busytonea	(caller1.busytonea,	agent.busytonea)
+		connector sync c1_connect	(caller1.connect,	agent.connect)
+		
+		connector sync c11_onhook	(caller1.onhooka,	callee1.onhookb)
+		connector sync c12_onhook	(caller1.onhooka,	callee2.onhookb)
+		connector sync c13_onhook	(caller1.onhooka,	callee3.onhookb)
+		connector sync c14_onhook	(caller1.onhooka,	callee4.onhookb)
+		connector sync c15_onhook	(caller1.onhooka,	callee5.onhookb)
+		connector sync c16_onhook	(caller1.onhooka,	callee6.onhookb)
+		
+		connector sync c2_ac		(caller2.ac,		agent.ac)
+		connector sync c2_ringa		(caller2.ringa,		agent.ringa)
+		connector sync c2_answera	(caller2.answera,	agent.answera)
+		connector sync c2_noanswera	(caller2.noanswera,	agent.noanswera)
+		connector sync c2_hangupa	(caller2.hangupa,	agent.hangupa)
+		connector sync c2_busytonea	(caller2.busytonea,	agent.busytonea)
+		connector sync c2_connect	(caller2.connect,	agent.connect)
+		
+		connector sync c21_onhook	(caller2.onhooka,	callee1.onhookb)
+		connector sync c22_onhook	(caller2.onhooka,	callee2.onhookb)
+		connector sync c23_onhook	(caller2.onhooka,	callee3.onhookb)
+		connector sync c24_onhook	(caller2.onhooka,	callee4.onhookb)
+		connector sync c25_onhook	(caller2.onhooka,	callee5.onhookb)
+		connector sync c26_onhook	(caller2.onhooka,	callee6.onhookb)
+		
+		connector sync c3_ac		(caller3.ac,		agent.ac)
+		connector sync c3_ringa		(caller3.ringa,		agent.ringa)
+		connector sync c3_answera	(caller3.answera,	agent.answera)
+		connector sync c3_noanswera	(caller3.noanswera,	agent.noanswera)
+		connector sync c3_hangupa	(caller3.hangupa,	agent.hangupa)
+		connector sync c3_busytonea	(caller3.busytonea,	agent.busytonea)
+		connector sync c3_connect	(caller3.connect,	agent.connect)
+		
+		connector sync c31_onhook	(caller3.onhooka,	callee1.onhookb)
+		connector sync c32_onhook	(caller3.onhooka,	callee2.onhookb)
+		connector sync c33_onhook	(caller3.onhooka,	callee3.onhookb)
+		connector sync c34_onhook	(caller3.onhooka,	callee4.onhookb)
+		connector sync c35_onhook	(caller3.onhooka,	callee5.onhookb)
+		connector sync c36_onhook	(caller3.onhooka,	callee6.onhookb)
+		
+		connector sync c4_ac		(caller4.ac,		agent.ac)
+		connector sync c4_ringa		(caller4.ringa,		agent.ringa)
+		connector sync c4_answera	(caller4.answera,	agent.answera)
+		connector sync c4_noanswera	(caller4.noanswera,	agent.noanswera)
+		connector sync c4_hangupa	(caller4.hangupa,	agent.hangupa)
+		connector sync c4_busytonea	(caller4.busytonea,	agent.busytonea)
+		connector sync c4_connect	(caller4.connect,	agent.connect)
+		
+		connector sync c41_onhook	(caller4.onhooka,	callee1.onhookb)
+		connector sync c42_onhook	(caller4.onhooka,	callee2.onhookb)
+		connector sync c43_onhook	(caller4.onhooka,	callee3.onhookb)
+		connector sync c44_onhook	(caller4.onhooka,	callee4.onhookb)
+		connector sync c45_onhook	(caller4.onhooka,	callee5.onhookb)
+		connector sync c46_onhook	(caller4.onhooka,	callee6.onhookb)
+		
+		connector sync c5_ac		(caller5.ac,		agent.ac)
+		connector sync c5_ringa		(caller5.ringa,		agent.ringa)
+		connector sync c5_answera	(caller5.answera,	agent.answera)
+		connector sync c5_noanswera	(caller5.noanswera,	agent.noanswera)
+		connector sync c5_hangupa	(caller5.hangupa,	agent.hangupa)
+		connector sync c5_busytonea	(caller5.busytonea,	agent.busytonea)
+		connector sync c5_connect	(caller5.connect,	agent.connect)
+		
+		connector sync c51_onhook	(caller5.onhooka,	callee1.onhookb)
+		connector sync c52_onhook	(caller5.onhooka,	callee2.onhookb)
+		connector sync c53_onhook	(caller5.onhooka,	callee3.onhookb)
+		connector sync c54_onhook	(caller5.onhooka,	callee4.onhookb)
+		connector sync c55_onhook	(caller5.onhooka,	callee5.onhookb)
+		connector sync c56_onhook	(caller5.onhooka,	callee6.onhookb)
+		
+		connector sync c6_ac		(caller6.ac,		agent.ac)
+		connector sync c6_ringa		(caller6.ringa,		agent.ringa)
+		connector sync c6_answera	(caller6.answera,	agent.answera)
+		connector sync c6_noanswera	(caller6.noanswera,	agent.noanswera)
+		connector sync c6_hangupa	(caller6.hangupa,	agent.hangupa)
+		connector sync c6_busytonea	(caller6.busytonea,	agent.busytonea)
+		connector sync c6_connect	(caller6.connect,	agent.connect)
+		
+		connector sync c61_onhook	(caller6.onhooka,	callee1.onhookb)
+		connector sync c62_onhook	(caller6.onhooka,	callee2.onhookb)
+		connector sync c63_onhook	(caller6.onhooka,	callee3.onhookb)
+		connector sync c64_onhook	(caller6.onhooka,	callee4.onhookb)
+		connector sync c65_onhook	(caller6.onhooka,	callee5.onhookb)
+		connector sync c66_onhook	(caller6.onhooka,	callee6.onhookb)
+		
+		connector sync c1_available	(callee1.available,	agent.available)
+		connector sync c1_checkb	(callee1.checkb,	agent.checkb)
+		connector sync c1_ringb		(callee1.ringb,		agent.ringb)
+		connector sync c1_stopringb	(callee1.stopringb,	agent.stopringb)
+		connector sync c1_answerb	(callee1.answerb,	agent.answerb)
+		connector sync c1_busyb		(callee1.busyb,		agent.busyb)
+		connector single c1_offhookb(callee1.offhookb)
+		
+		connector sync c2_available	(callee2.available,	agent.available)
+		connector sync c2_checkb	(callee2.checkb,	agent.checkb)
+		connector sync c2_ringb		(callee2.ringb,		agent.ringb)
+		connector sync c2_stopringb	(callee2.stopringb,	agent.stopringb)
+		connector sync c2_answerb	(callee2.answerb,	agent.answerb)
+		connector sync c2_busyb		(callee2.busyb,		agent.busyb)
+		connector single c2_offhookb(callee2.offhookb)
+		
+		connector sync c3_available	(callee3.available,	agent.available)
+		connector sync c3_checkb	(callee3.checkb,	agent.checkb)
+		connector sync c3_ringb		(callee3.ringb,		agent.ringb)
+		connector sync c3_stopringb	(callee3.stopringb,	agent.stopringb)
+		connector sync c3_answerb	(callee3.answerb,	agent.answerb)
+		connector sync c3_busyb		(callee3.busyb,		agent.busyb)
+		connector single c3_offhookb(callee3.offhookb)
+		
+		connector sync c4_available	(callee4.available,	agent.available)
+		connector sync c4_checkb	(callee4.checkb,	agent.checkb)
+		connector sync c4_ringb		(callee4.ringb,		agent.ringb)
+		connector sync c4_stopringb	(callee4.stopringb,	agent.stopringb)
+		connector sync c4_answerb	(callee4.answerb,	agent.answerb)
+		connector sync c4_busyb		(callee4.busyb,		agent.busyb)
+		connector single c4_offhookb(callee4.offhookb)
+		
+		connector sync c5_available	(callee5.available,	agent.available)
+		connector sync c5_checkb	(callee5.checkb,	agent.checkb)
+		connector sync c5_ringb		(callee5.ringb,		agent.ringb)
+		connector sync c5_stopringb	(callee5.stopringb,	agent.stopringb)
+		connector sync c5_answerb	(callee5.answerb,	agent.answerb)
+		connector sync c5_busyb		(callee5.busyb,		agent.busyb)
+		connector single c5_offhookb(callee5.offhookb)
+		
+		connector sync c6_available	(callee6.available,	agent.available)
+		connector sync c6_checkb	(callee6.checkb,	agent.checkb)
+		connector sync c6_ringb		(callee6.ringb,		agent.ringb)
+		connector sync c6_stopringb	(callee6.stopringb,	agent.stopringb)
+		connector sync c6_answerb	(callee6.answerb,	agent.answerb)
+		connector sync c6_busyb		(callee6.busyb,		agent.busyb)
+		connector single c6_offhookb(callee6.offhookb)
+
+	end
+	
+	component system t
+	
+	INVARSPEC !((caller1.place == Talking) & (caller2.place == Talking) & (caller3.place == Talking) & (caller4.place == Talking) & (caller5.place == Talking) & (caller6.place == Talking))
+end
+
+		
+		
+		
+		
+	
+		
+		
+		
+			

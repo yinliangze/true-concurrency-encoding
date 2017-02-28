@@ -1,0 +1,16 @@
+./VCS -SMVModel bench/DPU.bip
+./VCS -SMVModel bench/GCS.bip
+./VCS -SMVModel bench/MTP.bip
+./VCS -SMVModel bench/INT.bip
+./VCS -SMVModel bench/ACS4.bip
+./VCS -SMVModel bench/ACS5.bip
+./VCS -SMVModel bench/ACS6.bip
+./VCS -SMVModel bench/ATM5.bip
+./VCS -SMVModel bench/ATM6.bip
+./VCS -SMVModel bench/ATM7.bip
+./VCS -SMVModel bench/DPP10.bip
+./VCS -SMVModel bench/DPP11.bip
+./VCS -SMVModel bench/DPP12.bip
+./VCS -SMVModel bench/Monitor.bip
+
+

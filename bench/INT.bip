@@ -1,0 +1,1229 @@
+model BIP_MODEL
+
+	port type boolPort(bool param1)
+	port type intPort(int[0:7] param1)
+	port type ePort
+
+	connector type rendezvous(ePort p1, ePort p2)
+		define p1 p2 
+		on p1 p2
+		up{
+			
+		}
+		down{
+			
+		}
+
+	end
+
+	connector type R2Param1Bool(boolPort source, boolPort sink)
+		define source sink 
+		on source sink
+		up{
+			// up action
+		}
+		down{
+			// down action
+sink.param1 = source.param1;
+		}
+
+	end
+
+	connector type R2Param1Int(intPort source, intPort sink)
+		define source sink 
+		on source sink
+		up{
+			// up action
+		}
+		down{
+			// down action
+
+sink.param1 = source.param1;
+		}
+
+	end
+
+
+	atomic type exti_thread_dispatcher
+		data int[0:7] intr_id
+		data int[0:7] priority_mainframe
+		data int[0:7] priority_slaveframe
+		data int[0:7] priority_sync
+		data int[0:7] priority_errorframe
+		data int[0:7] priority_timeout
+		data int[0:7] priority_supervisory
+		data int[0:7] priority_general
+		data int[0:7] priority_notime
+		data bool flag_mf
+		data bool dflag_mf
+		data bool flag_sf
+		data bool dflag_sf
+		data bool flag_sync
+		data bool dflag_sync
+		data bool flag_error
+		data bool dflag_error
+		data bool flag_timeout
+		data bool dflag_timeout
+		data bool flag_supervisory
+		data bool dflag_supervisory
+		data bool flag_notime
+		data bool dflag_notime
+		data int[0:7] top
+		data int[0:7] elem
+		data int[0:7] NIL
+		data int[0:7] MF
+		data int[0:7] SF
+		data int[0:7] SPV
+		data int[0:7] SYNC
+		data int[0:7] NT
+		data int[0:7] ERR
+		data int[0:7] TMT
+		data int[0:7] head
+		data int[0:7] delem
+		data bool mask_mf
+		data bool mask_sf
+		data bool mask_supervisory
+		data bool mask_sync
+		data bool mask_notime
+		data bool mask_error
+		data bool mask_timeout
+
+		export port ePort interrupt_mf_launch
+		export port ePort interrupt_mf_terminate
+		export port intPort in(intr_id)
+		port ePort initializationSYS
+		export port ePort interrupt_sf_launch
+		export port ePort interrupt_sf_terminate
+		export port ePort interrupt_sync_launch
+		export port ePort interrupt_sync_terminate
+		export port ePort interrupt_sync_dsr_launch
+		export port ePort interrupt_sync_dsr_terminate
+		export port ePort interrupt_error_launch
+		export port ePort interrupt_error_terminate
+		export port ePort interrupt_error_dsr_launch
+		export port ePort interrupt_error_dsr_terminate
+		export port ePort interrupt_timeout_launch
+		export port ePort interrupt_timeout_terminate
+		export port ePort interrupt_timeout_dsr_launch
+		export port ePort interrupt_timeout_dsr_terminate
+		export port ePort interrupt_supervisory_launch
+		export port ePort interrupt_supervisory_terminate
+		export port ePort interrupt_notime_launch
+		export port ePort interrupt_notime_terminate
+		export port intPort getTop(top)
+		export port intPort push(elem)
+		export port ePort pop
+		port ePort tmp
+		export port intPort getHead(head)
+		export port intPort enqueue(delem)
+		export port ePort dequeue
+
+		place RUN
+		place init0
+		place MF_PUSHED
+		place MF_IRQ
+		place MF_DONE
+		place SPV_IRQ
+		place SPV_PUSHED
+		place SPV_DONE
+		place NT_IRQ
+		place NT_PUSHED
+		place NT_DONE
+		place SF_IRQ
+		place SF_PUSHED
+		place SF_DONE
+		place MF_TOP
+		place SF_TOP
+		place SPV_TOP
+		place NT_TOP
+		place SYNC_IRQ
+		place SYNC_PUSHED
+		place SYNC_TOP
+		place SYNC_DONE
+		place SYNC_POP
+		place SYNC_ENQUE
+		place SYNC_DSR_DONE
+		place SYNC_DSR_DEQUE
+		place ERR_IRQ
+		place ERR_PUSHED
+		place ERR_TOP
+		place ERR_DONE
+		place ERR_POP
+		place ERR_ENQUE
+		place ERR_DSR_DONE
+		place ERR_DSR_DEQUE
+		place TMT_IRQ
+		place TMT_PUSHED
+		place TMT_TOP
+		place TMT_DONE
+		place TMT_POP
+		place TMT_ENQUE
+		place TMT_DSR_DONE
+		place TMT_DSR_DEQUE
+		place NEW_INTR
+
+		initial to init0 do {
+		intr_id = 0;
+		priority_mainframe = 0;
+		priority_slaveframe = 0;
+		priority_sync = 2;
+		priority_errorframe = 4;
+		priority_timeout = 4;
+		priority_supervisory = 1;
+		priority_general = 0;
+		priority_notime = 3;
+		flag_mf = false;
+		dflag_mf = false;
+		flag_sf = false;
+		dflag_sf = false;
+		flag_sync = false;
+		dflag_sync = false;
+		flag_error = false;
+		dflag_error = false;
+		flag_timeout = false;
+		dflag_timeout = false;
+		flag_supervisory = false;
+		dflag_supervisory = false;
+		flag_notime = false;
+		dflag_notime = false;
+		top = 0;
+		elem = 0;
+		NIL = 0;
+		MF = 1;
+		SF = 2;
+		SPV = 3;
+		SYNC = 4;
+		NT = 5;
+		ERR = 6;
+		TMT = 7;
+		head = 0;
+		delem = 0;
+		mask_mf = false;
+		mask_sf = false;
+		mask_supervisory = false;
+		mask_sync = false;
+		mask_notime = false;
+		mask_error = false;
+		mask_timeout = false;
+		}
+
+		on interrupt_mf_terminate from RUN to MF_DONE provided top == MF do {flag_mf = false;
+mask_mf = false;}
+		on in from RUN to NEW_INTR provided true do {}
+		on tmp from RUN to SF_IRQ provided mask_sf == false & 
+flag_sf == true & 
+flag_mf == false do {mask_sf = true;
+elem = SF;}
+		on interrupt_sf_terminate from RUN to SF_DONE provided top == SF do {flag_sf = false;
+mask_sf = false;}
+		on tmp from RUN to SYNC_IRQ provided mask_sync == false & 
+flag_sync == true & 
+flag_mf == false & 
+flag_sf == false & 
+flag_supervisory == false do {elem = SYNC;
+mask_sync = true;}
+		on interrupt_sync_terminate from RUN to SYNC_DONE provided top == SYNC do {flag_sync = false;
+mask_sync = false;}
+		on interrupt_sync_dsr_launch from RUN to RUN provided dflag_sync == true & head == SYNC do {dflag_sync = false;}
+		on tmp from RUN to ERR_IRQ provided mask_error == false & 
+flag_error == true & 
+flag_mf == false & 
+flag_sf == false & 
+flag_supervisory == false & 
+flag_sync == false & 
+flag_notime == false & 
+flag_timeout == false do {mask_error = true;
+elem = ERR;}
+		on interrupt_error_terminate from RUN to ERR_DONE provided top == ERR do {flag_error = false;
+mask_error = false;}
+		on interrupt_error_dsr_launch from RUN to RUN provided dflag_error == true & head == ERR do {dflag_error = false;}
+		on tmp from RUN to TMT_IRQ provided mask_timeout == false & 
+flag_timeout == true & 
+flag_mf == false & 
+flag_sf == false & 
+flag_supervisory == false & 
+flag_sync == false & 
+flag_notime == false & 
+flag_error == false do {elem = TMT;
+mask_timeout = true;}
+		on interrupt_timeout_terminate from RUN to TMT_DONE provided top == TMT do {flag_timeout = false;
+mask_timeout = false;}
+		on interrupt_timeout_dsr_launch from RUN to RUN provided dflag_timeout == true & head == TMT do {dflag_timeout = false;}
+		on tmp from RUN to SPV_IRQ provided mask_supervisory == false & 
+flag_supervisory == true &
+flag_mf == false &
+flag_sf == false do {mask_supervisory = true;
+elem = SPV;}
+		on interrupt_supervisory_terminate from RUN to SPV_DONE provided top == SPV do {flag_supervisory = false;
+mask_supervisory = false;}
+		on tmp from RUN to NT_IRQ provided mask_notime == false & 
+flag_notime == true & 
+flag_mf == false & 
+flag_sf == false & 
+flag_supervisory == false & 
+flag_sync == false do {mask_notime = true;
+elem = NT;}
+		on interrupt_notime_terminate from RUN to NT_DONE provided top == NT do {flag_notime = false;
+mask_notime = false;}
+		on tmp from RUN to MF_IRQ provided mask_mf == false & 
+flag_mf == true & 
+flag_sf == false do {mask_mf = true;
+elem = MF;}
+		on interrupt_sync_dsr_terminate from RUN to SYNC_DSR_DONE provided dflag_sync == false & head == SYNC do {}
+		on interrupt_error_dsr_terminate from RUN to ERR_DSR_DONE provided dflag_error == false & head == ERR do {}
+		on interrupt_timeout_dsr_terminate from RUN to TMT_DSR_DONE provided dflag_timeout == false & head == TMT do {}
+		on initializationSYS from init0 to RUN provided true do {}
+		on getTop from MF_PUSHED to MF_TOP provided true do {}
+		on push from MF_IRQ to MF_PUSHED provided true do {}
+		on pop from MF_DONE to RUN provided top == MF do {dflag_mf = false;}
+		on push from SPV_IRQ to SPV_PUSHED provided true do {}
+		on getTop from SPV_PUSHED to SPV_TOP provided true do {}
+		on pop from SPV_DONE to RUN provided top == SPV do {dflag_supervisory = false;}
+		on push from NT_IRQ to NT_PUSHED provided true do {}
+		on getTop from NT_PUSHED to NT_TOP provided true do {}
+		on pop from NT_DONE to RUN provided top == NT do {dflag_notime = false;}
+		on push from SF_IRQ to SF_PUSHED provided true do {}
+		on getTop from SF_PUSHED to SF_TOP provided true do {}
+		on pop from SF_DONE to RUN provided top == SF do {dflag_sf = false;}
+		on interrupt_mf_launch from MF_TOP to RUN provided true do {}
+		on interrupt_sf_launch from SF_TOP to RUN provided true do {}
+		on interrupt_supervisory_launch from SPV_TOP to RUN provided true do {}
+		on interrupt_notime_launch from NT_TOP to RUN provided true do {}
+		on push from SYNC_IRQ to SYNC_PUSHED provided true do {}
+		on getTop from SYNC_PUSHED to SYNC_TOP provided true do {}
+		on interrupt_sync_launch from SYNC_TOP to RUN provided true do {}
+		on pop from SYNC_DONE to SYNC_POP provided top == SYNC do {dflag_sync = true;
+delem = SYNC;}
+		on enqueue from SYNC_POP to SYNC_ENQUE provided true do {}
+		on getHead from SYNC_ENQUE to RUN provided true do {}
+		on dequeue from SYNC_DSR_DONE to SYNC_DSR_DEQUE provided true do {}
+		on getHead from SYNC_DSR_DEQUE to RUN provided true do {}
+		on push from ERR_IRQ to ERR_PUSHED provided true do {}
+		on getTop from ERR_PUSHED to ERR_TOP provided true do {}
+		on interrupt_error_launch from ERR_TOP to RUN provided true do {}
+		on pop from ERR_DONE to ERR_POP provided top == ERR do {dflag_error = true;
+delem = ERR;}
+		on enqueue from ERR_POP to ERR_ENQUE provided true do {}
+		on getHead from ERR_ENQUE to RUN provided true do {}
+		on dequeue from ERR_DSR_DONE to ERR_DSR_DEQUE provided true do {}
+		on getHead from ERR_DSR_DEQUE to RUN provided true do {}
+		on push from TMT_IRQ to TMT_PUSHED provided true do {}
+		on getTop from TMT_PUSHED to TMT_TOP provided true do {}
+		on interrupt_timeout_launch from TMT_TOP to RUN provided true do {}
+		on pop from TMT_DONE to TMT_POP provided top == TMT do {dflag_timeout = true;
+delem = TMT;}
+		on enqueue from TMT_POP to TMT_ENQUE provided true do {}
+		on getHead from TMT_ENQUE to RUN provided true do {}
+		on dequeue from TMT_DSR_DONE to TMT_DSR_DEQUE provided true do {}
+		on getHead from TMT_DSR_DEQUE to RUN provided true do {}
+		on tmp from NEW_INTR to RUN provided intr_id == MF do {flag_mf = true;}
+		on tmp from NEW_INTR to RUN provided intr_id == SYNC do {flag_sync = true;}
+		on tmp from NEW_INTR to RUN provided intr_id == SF do {flag_sf = true;}
+		on tmp from NEW_INTR to RUN provided intr_id == ERR do {flag_error = true;}
+		on tmp from NEW_INTR to RUN provided intr_id == SPV do {flag_supervisory = true;}
+		on tmp from NEW_INTR to RUN provided intr_id == TMT do {flag_timeout = true;}
+		on tmp from NEW_INTR to RUN provided intr_id == NT do {flag_notime = true;}
+
+	end
+
+	atomic type mainframe_interrupt_isr
+		data bool shared_wait_for_ba
+		data int[0:7] shared_last_mf
+		data int[0:7] shared_current_mf
+		data int[0:7] shared_mvb_device_status_16
+		data int[0:7] shared_ba_mf
+		data int[0:7] shared_vector
+		data int[0:1] cs3
+		data int[0:7] MF
+
+		export port ePort launch
+		export port ePort terminate
+		export port intPort W_last_mf(shared_last_mf)
+		export port intPort R_current_mf(shared_current_mf)
+		export port intPort W_current_mf(shared_current_mf)
+		export port intPort R_mvb_device_status_16(shared_mvb_device_status_16)
+		export port intPort W_mvb_device_status_16(shared_mvb_device_status_16)
+		export port boolPort W_wait_for_ba(shared_wait_for_ba)
+		export port intPort R_ba_mf(shared_ba_mf)
+		port ePort initialization
+		port ePort branch1
+		port ePort branch2
+		port ePort tmp
+		export port intPort mfprocess_handle(shared_vector)
+
+		place RUN
+		place place0
+		place place1
+		place place2
+		place place3
+		place place4
+		place place5
+		place place6
+		place _NCG_1
+		place place8
+		place place9
+		place place10
+		place CF_OFF_1
+		place place12
+		place init0
+		place place13
+		place place7
+
+		initial to init0 do {
+		shared_wait_for_ba = false;
+		shared_last_mf = 0;
+		shared_current_mf = 0;
+		shared_mvb_device_status_16 = 0;
+		shared_ba_mf = 0;
+		shared_vector = 1;
+		cs3 = 0;
+		MF = 1;
+		}
+
+		on launch from RUN to place0 provided true do {shared_wait_for_ba = false;}
+		on W_wait_for_ba from place0 to place1 provided true do {}
+		on R_current_mf from place1 to place2 provided true do {shared_last_mf = shared_current_mf;}
+		on W_last_mf from place2 to place3 provided true do {}
+		on W_current_mf from place3 to place4 provided true do {}
+		on R_current_mf from place4 to place8 provided true do {}
+		on branch1 from place5 to place6 provided cs3 == 1 & !(shared_current_mf == shared_ba_mf) do {}
+		on branch2 from place5 to _NCG_1 provided !(cs3 == 1) | shared_current_mf == shared_ba_mf do {}
+		on tmp from place6 to place9 provided true do {cs3 = 0;
+shared_mvb_device_status_16 = MF;}
+		on tmp from _NCG_1 to CF_OFF_1 provided true do {}
+		on R_ba_mf from place8 to place5 provided true do {}
+		on W_mvb_device_status_16 from place9 to place13 provided true do {}
+		on tmp from place10 to CF_OFF_1 provided true do {}
+		on mfprocess_handle from CF_OFF_1 to place12 provided true do {}
+		on terminate from place12 to init0 provided true do {}
+		on initialization from init0 to RUN provided true do {cs3 = 1;}
+		on tmp from place13 to place7 provided true do {}
+		on R_mvb_device_status_16 from place7 to place10 provided true do {}
+
+	end
+
+	atomic type wait_for_ba
+		data bool shared_wait_for_ba
+
+		export port boolPort W(shared_wait_for_ba)
+
+		place init0
+
+		initial to init0 do {
+		shared_wait_for_ba = false;
+		}
+
+		on W from init0 to init0 provided true do {}
+
+	end
+
+	atomic type last_mf
+		data int[0:7] shared_last_mf
+
+		export port intPort W(shared_last_mf)
+
+		place init0
+
+		initial to init0 do {
+		shared_last_mf = 0;
+		}
+
+		on W from init0 to init0 provided true do {}
+
+	end
+
+	atomic type current_mf
+		data int[0:7] shared_current_mf
+
+		export port intPort R(shared_current_mf)
+		export port intPort W(shared_current_mf)
+
+		place init0
+
+		initial to init0 do {
+		shared_current_mf = 1;
+		}
+
+		on R from init0 to init0 provided true do {}
+		on W from init0 to init0 provided true do {}
+
+	end
+
+	atomic type mvb_device_status_16
+		data int[0:7] shared_mvb_device_status_16
+
+		export port intPort R(shared_mvb_device_status_16)
+		export port intPort W(shared_mvb_device_status_16)
+
+		place init0
+
+		initial to init0 do {
+		shared_mvb_device_status_16 = 0;
+		}
+
+		on R from init0 to init0 provided true do {}
+		on W from init0 to init0 provided true do {}
+
+	end
+
+	atomic type ba_mf
+		data int[0:7] shared_ba_mf
+
+		export port intPort R(shared_ba_mf)
+
+		place init0
+
+		initial to init0 do {
+		shared_ba_mf = 2;
+		}
+
+		on R from init0 to init0 provided true do {}
+
+	end
+
+	atomic type FPGA
+		data int[0:7] intr_id
+		data int[0:7] MF
+		data int[0:7] SF
+		data int[0:7] SPV
+		data int[0:7] SYNC
+		data int[0:7] NT
+		data int[0:7] ERR
+		data int[0:7] TMT
+		data int[0:7] NIL
+
+		port ePort idle
+		port ePort out_mf
+		port ePort out_sf
+		port ePort out_sync
+		port ePort out_error
+		port ePort out_timeout
+		port ePort out_supervisory
+		port ePort out_notime
+		export port intPort out(intr_id)
+
+		place init0
+
+		initial to init0 do {
+		intr_id = 0;
+		MF = 1;
+		SF = 2;
+		SPV = 3;
+		SYNC = 4;
+		NT = 5;
+		ERR = 6;
+		TMT = 7;
+		NIL = 0;
+		}
+
+		on idle from init0 to init0 provided true do {intr_id = NIL;}
+		on out_sf from init0 to init0 provided true do {intr_id = SF;}
+		on out_sync from init0 to init0 provided true do {intr_id = SYNC;}
+		on out_error from init0 to init0 provided true do {intr_id = ERR;}
+		on out_mf from init0 to init0 provided true do {intr_id = MF;}
+		on out_timeout from init0 to init0 provided true do {intr_id = TMT;}
+		on out_supervisory from init0 to init0 provided true do {intr_id = SPV;}
+		on out_notime from init0 to init0 provided true do {intr_id = NT;}
+		on out from init0 to init0 provided intr_id > 0 & intr_id <= 7 do {intr_id = NIL;}
+
+	end
+
+	atomic type mfprocess_handle
+		data int[0:7] shared_vector
+
+		export port intPort launch(shared_vector)
+
+		place init0
+		place place0
+
+		initial to init0 do {
+		shared_vector = 0;
+		}
+
+		on launch from init0 to place0 provided true do {}
+
+	end
+
+	atomic type slaveframe_interrupt_isr
+		data int[0:7] shared_last_sf
+		data int[0:7] shared_current_sf
+		data int[0:7] shared_vector
+
+		export port ePort launch
+		export port ePort terminate
+		export port intPort W_last_sf(shared_last_sf)
+		export port intPort R_current_sf(shared_current_sf)
+		export port intPort W_current_sf(shared_current_sf)
+		export port intPort sfprocess_handle(shared_vector)
+
+		place init0
+		place place0
+		place place1
+		place place2
+		place place3
+		place place4
+
+		initial to init0 do {
+		shared_last_sf = 0;
+		shared_current_sf = 0;
+		shared_vector = 2;
+		}
+
+		on launch from init0 to place4 provided true do {}
+		on W_last_sf from place0 to place1 provided true do {shared_current_sf = 1;}
+		on W_current_sf from place1 to place2 provided true do {}
+		on sfprocess_handle from place2 to place3 provided true do {}
+		on terminate from place3 to init0 provided true do {}
+		on R_current_sf from place4 to place0 provided true do {shared_last_sf = shared_current_sf;}
+
+	end
+
+	atomic type sfprocess_handle
+		data int[0:7] shared_vector
+
+		export port intPort launch(shared_vector)
+
+		place init0
+		place place0
+
+		initial to init0 do {
+		shared_vector = 0;
+		}
+
+		on launch from init0 to place0 provided true do {}
+
+	end
+
+	atomic type last_sf
+		data int[0:7] shared_last_sf
+
+		export port intPort W(shared_last_sf)
+
+		place init0
+
+		initial to init0 do {
+		shared_last_sf = 2;
+		}
+
+		on W from init0 to init0 provided true do {}
+
+	end
+
+	atomic type current_sf
+		data int[0:7] shared_current_sf
+
+		export port intPort R(shared_current_sf)
+		export port intPort W(shared_current_sf)
+
+		place init0
+
+		initial to init0 do {
+		shared_current_sf = 2;
+		}
+
+		on R from init0 to init0 provided true do {}
+		on W from init0 to init0 provided true do {}
+
+	end
+
+	atomic type sync_interrupt_dsr
+
+		export port ePort launch
+		export port ePort terminate
+		export port ePort syncprocess_handle
+
+		place init0
+		place place0
+		place place1
+
+		initial to init0 do {
+		}
+
+		on launch from init0 to place0 provided true do {}
+		on syncprocess_handle from place0 to place1 provided true do {}
+		on terminate from place1 to init0 provided true do {}
+
+	end
+
+	atomic type sync_interrupt_isr
+		data int[0:7] shared_sync_checkbit
+		data int[0:7] SYNC
+
+		export port intPort W_sync_checkbit(shared_sync_checkbit)
+		export port ePort launch
+		export port ePort terminate
+		port ePort p
+
+		place init0
+		place place0
+		place place1
+		place place2
+
+		initial to init0 do {
+		shared_sync_checkbit = 0;
+		SYNC = 4;
+		}
+
+		on launch from init0 to place0 provided true do {}
+		on p from place0 to place1 provided true do {shared_sync_checkbit = SYNC;}
+		on W_sync_checkbit from place1 to place2 provided true do {}
+		on terminate from place2 to init0 provided true do {}
+
+	end
+
+	atomic type sync_checkbit
+		data int[0:7] shared_sync_checkbit
+
+		export port intPort W(shared_sync_checkbit)
+
+		place init0
+
+		initial to init0 do {
+		shared_sync_checkbit = 0;
+		}
+
+		on W from init0 to init0 provided true do {}
+
+	end
+
+	atomic type syncprocess_handle
+
+		export port ePort launch
+
+		place init0
+		place place0
+
+		initial to init0 do {
+		}
+
+		on launch from init0 to place0 provided true do {}
+
+	end
+
+	atomic type errorframe_interrupt_isr
+		data int[0:7] shared_frame_checkbit
+		data int[0:7] ERR
+
+		export port ePort launch
+		export port ePort terminate
+		export port intPort W_frame_checkbit(shared_frame_checkbit)
+		port ePort p
+
+		place init0
+		place place0
+		place place1
+		place place2
+
+		initial to init0 do {
+		shared_frame_checkbit = 0;
+		ERR = 6;
+		}
+
+		on launch from init0 to place0 provided true do {}
+		on p from place0 to place1 provided true do {shared_frame_checkbit = ERR;}
+		on W_frame_checkbit from place1 to place2 provided true do {}
+		on terminate from place2 to init0 provided true do {}
+
+	end
+
+	atomic type frame_checkbit
+		data int[0:7] shared_frame_checkbit
+
+		export port intPort R(shared_frame_checkbit)
+		export port intPort W(shared_frame_checkbit)
+
+		place init0
+
+		initial to init0 do {
+		shared_frame_checkbit = 0;
+		}
+
+		on R from init0 to init0 provided true do {}
+		on W from init0 to init0 provided true do {}
+
+	end
+
+	atomic type errorframe_interrupt_dsr
+		data int[0:7] shared_frame_checkbit
+		data int[0:7] shared_mvb_device_status_16
+		data int[0:7] shared_HAL_IO_ENUM_MAIN_FRAME
+		data int[0:1] cs3
+		data int[0:7] ERR
+
+		export port ePort launch
+		export port ePort terminate
+		export port intPort R_frame_checkbit(shared_frame_checkbit)
+		export port intPort R_mvb_device_status_16(shared_mvb_device_status_16)
+		export port intPort W_mvb_device_status_16(shared_mvb_device_status_16)
+		port ePort p
+		port ePort initialization
+		port ePort branch1
+		port ePort branch2
+
+		place init0
+		place place0
+		place place1
+		place place2
+		place place3
+		place place4
+		place place5
+		place place6
+		place place7
+		place place8
+		place place9
+		place place10
+		place place11
+
+		initial to init0 do {
+		shared_frame_checkbit = 0;
+		shared_mvb_device_status_16 = 0;
+		shared_HAL_IO_ENUM_MAIN_FRAME = 0;
+		cs3 = 0;
+		ERR = 6;
+		}
+
+		on launch from init0 to place10 provided true do {}
+		on R_frame_checkbit from place0 to place1 provided true do {}
+		on branch1 from place1 to place2 provided shared_frame_checkbit == shared_HAL_IO_ENUM_MAIN_FRAME do {}
+		on branch2 from place1 to place3 provided !(shared_frame_checkbit == shared_HAL_IO_ENUM_MAIN_FRAME) do {}
+		on branch1 from place2 to place4 provided cs3 == 1 do {}
+		on branch2 from place2 to place5 provided !(cs3 == 1) do {}
+		on p from place3 to place9 provided true do {}
+		on p from place4 to place6 provided true do {cs3 = 0;
+shared_mvb_device_status_16 = ERR;}
+		on p from place5 to place8 provided true do {}
+		on W_mvb_device_status_16 from place6 to place11 provided true do {}
+		on R_mvb_device_status_16 from place7 to place8 provided true do {}
+		on p from place8 to place9 provided true do {}
+		on terminate from place9 to init0 provided true do {}
+		on initialization from place10 to place0 provided true do {cs3 = 1;
+shared_HAL_IO_ENUM_MAIN_FRAME = ERR;}
+		on p from place11 to place7 provided true do {}
+
+	end
+
+	atomic type timeout_interrupt_isr
+		data int[0:7] shared_frame_checkbit
+		data int[0:7] TMT
+
+		export port ePort launch
+		export port ePort terminate
+		export port intPort W_frame_checkbit(shared_frame_checkbit)
+		port ePort p
+
+		place init0
+		place place0
+		place place1
+		place place2
+
+		initial to init0 do {
+		shared_frame_checkbit = 0;
+		TMT = 7;
+		}
+
+		on launch from init0 to place0 provided true do {}
+		on p from place0 to place1 provided true do {shared_frame_checkbit = TMT;}
+		on W_frame_checkbit from place1 to place2 provided true do {}
+		on terminate from place2 to init0 provided true do {}
+
+	end
+
+	atomic type timeout_interrupt_dsr
+		data int[0:7] shared_frame_checkbit
+		data bool shared_wait_for_ba
+		data int[0:7] shared_standup_flag
+		data int[0:7] shared_current_mf
+		data int[0:7] shared_HAL_IO_ENUM_MAIN_FRAME
+		data int[0:1] ba
+		data int[0:1] cs3
+		data int[0:7] TMT
+
+		export port ePort launch
+		export port ePort terminate
+		export port intPort R_frame_checkbit(shared_frame_checkbit)
+		port ePort p
+		port ePort initialization
+		port ePort branch1
+		port ePort branch2
+		export port boolPort W_wait_for_ba(shared_wait_for_ba)
+		export port intPort R_standup_flag(shared_standup_flag)
+		export port intPort W_standup_flag(shared_standup_flag)
+		export port intPort R_current_mf(shared_current_mf)
+
+		place init0
+		place place0
+		place place1
+		place place2
+		place place3
+		place place4
+		place place5
+		place place6
+		place place8
+		place place9
+		place place10
+		place place11
+		place place12
+		place place7
+		place place13
+		place place14
+		place place15
+		place place16
+		place place17
+
+		initial to init0 do {
+		shared_frame_checkbit = 0;
+		shared_wait_for_ba = false;
+		shared_standup_flag = 0;
+		shared_current_mf = 0;
+		shared_HAL_IO_ENUM_MAIN_FRAME = 0;
+		ba = 0;
+		cs3 = 0;
+		TMT = 7;
+		}
+
+		on launch from init0 to place10 provided true do {}
+		on R_frame_checkbit from place0 to place1 provided true do {}
+		on branch1 from place1 to place11 provided shared_frame_checkbit == shared_HAL_IO_ENUM_MAIN_FRAME do {shared_wait_for_ba = true;}
+		on branch2 from place1 to place3 provided !(shared_frame_checkbit == shared_HAL_IO_ENUM_MAIN_FRAME) do {}
+		on branch1 from place2 to place4 provided ba == 1 & shared_standup_flag == 0 & cs3 == 0 do {}
+		on branch2 from place2 to place5 provided !(ba == 1) | !(shared_standup_flag == 0) | !(cs3 == 0) do {}
+		on branch1 from place3 to place13 provided cs3 == 0 do {}
+		on branch2 from place3 to place17 provided !(cs3 == 0) do {}
+		on p from place4 to place6 provided true do {shared_standup_flag = 1;}
+		on p from place5 to place8 provided true do {}
+		on W_standup_flag from place6 to place7 provided true do {}
+		on p from place8 to place9 provided true do {}
+		on terminate from place9 to init0 provided true do {}
+		on initialization from place10 to place0 provided true do {ba = 1;
+cs3 = 0;
+shared_HAL_IO_ENUM_MAIN_FRAME = TMT;}
+		on W_wait_for_ba from place11 to place12 provided true do {}
+		on R_standup_flag from place12 to place2 provided true do {}
+		on p from place7 to place8 provided true do {}
+		on branch1 from place13 to place14 provided ba == 1 do {}
+		on branch2 from place13 to place15 provided !(ba == 1) do {}
+		on R_current_mf from place14 to place15 provided true do {}
+		on p from place15 to place16 provided true do {}
+		on p from place16 to place9 provided true do {}
+		on p from place17 to place16 provided true do {}
+
+	end
+
+	atomic type standup_flag
+		data int[0:7] shared_standu_flag
+
+		export port intPort R(shared_standu_flag)
+		export port intPort W(shared_standu_flag)
+
+		place init0
+
+		initial to init0 do {
+		shared_standu_flag = 0;
+		}
+
+		on R from init0 to init0 provided true do {}
+		on W from init0 to init0 provided true do {}
+
+	end
+
+	atomic type supervisory_interrupt_isr
+		data int[0:7] shared_md_notime
+
+		export port ePort launch
+		export port ePort terminate
+		export port intPort W_md_notime(shared_md_notime)
+		port ePort p
+		export port ePort supervisory_interrupt_handle
+
+		place init0
+		place place0
+		place place1
+		place place2
+		place place3
+
+		initial to init0 do {
+		shared_md_notime = 0;
+		}
+
+		on launch from init0 to place0 provided true do {}
+		on p from place0 to place1 provided true do {shared_md_notime = 0;}
+		on W_md_notime from place1 to place2 provided true do {}
+		on supervisory_interrupt_handle from place2 to place3 provided true do {}
+		on terminate from place3 to init0 provided true do {}
+
+	end
+
+	atomic type supervisory_interrupt_handle
+
+		export port ePort launch
+
+		place init0
+		place place0
+
+		initial to init0 do {
+		}
+
+		on launch from init0 to place0 provided true do {}
+
+	end
+
+	atomic type md_notime
+		data int[0:7] shared_md_notime
+
+		export port intPort W(shared_md_notime)
+
+		place init0
+
+		initial to init0 do {
+		shared_md_notime = 0;
+		}
+
+		on W from init0 to init0 provided true do {}
+
+	end
+
+	atomic type notime_interrupt_isr
+		data int[0:7] shared_md_notime
+
+		export port ePort launch
+		export port ePort terminate
+		export port intPort W_md_notime(shared_md_notime)
+		port ePort p
+
+		place init0
+		place place0
+		place place1
+		place place2
+
+		initial to init0 do {
+		shared_md_notime = 0;
+		}
+
+		on launch from init0 to place0 provided true do {}
+		on p from place0 to place1 provided true do {shared_md_notime = 1;}
+		on W_md_notime from place1 to place2 provided true do {}
+		on terminate from place2 to init0 provided true do {}
+
+	end
+
+	atomic type ISR_Stack
+		data int[0:7] top
+		data int[0:7] data0
+		data int[0:7] data1
+		data int[0:7] data2
+		data int[0:7] data3
+		data int[0:7] data4
+		data int[0:7] elem
+		data int[0:7] NIL
+
+		export port intPort push(elem)
+		export port intPort getTop(top)
+		export port ePort pop
+
+		place init0
+		place place0
+		place place1
+		place place2
+		place place3
+		place place4
+
+		initial to init0 do {
+		top = 0;
+		data0 = 0;
+		data1 = 0;
+		data2 = 0;
+		data3 = 0;
+		data4 = 0;
+		elem = 0;
+		NIL = 0;
+		}
+
+		on push from init0 to place0 provided true do {data0 = elem;
+top = data0;}
+		on pop from place0 to init0 provided true do {data0 = NIL;
+top = NIL;}
+		on getTop from place0 to place0 provided true do {}
+		on push from place0 to place1 provided true do {data1 = elem;
+top = data1;}
+		on pop from place1 to place0 provided true do {data1 = NIL;
+top = data0;}
+		on push from place1 to place2 provided true do {data2 = elem;
+top = data2;}
+		on getTop from place1 to place1 provided true do {}
+		on pop from place2 to place1 provided true do {data2 = NIL;
+top = data1;}
+		on push from place2 to place3 provided true do {data3 = elem;
+top = data3;}
+		on getTop from place2 to place2 provided true do {}
+		on pop from place3 to place2 provided true do {data3 = NIL;
+top = data2;}
+		on push from place3 to place4 provided true do {data4 = elem;
+top = data4;}
+		on getTop from place3 to place3 provided true do {}
+		on pop from place4 to place3 provided true do {data4 = NIL;
+top = data3;}
+		on getTop from place4 to place4 provided true do {}
+
+	end
+
+	atomic type DSR_Queue
+		data int[0:7] head
+		data int[0:7] data0
+		data int[0:7] data1
+		data int[0:7] data2
+		data int[0:7] data3
+		data int[0:7] data4
+		data int[0:7] elem
+		data int[0:7] NIL
+
+		export port intPort enqueue(elem)
+		export port intPort getHead(head)
+		export port ePort dequeue
+
+		place init0
+		place place0
+		place place1
+		place place2
+		place place3
+		place place4
+
+		initial to init0 do {
+		head = 0;
+		data0 = 0;
+		data1 = 0;
+		data2 = 0;
+		data3 = 0;
+		data4 = 0;
+		elem = 0;
+		NIL = 0;
+		}
+
+		on enqueue from init0 to place0 provided true do {data0 = elem;
+head = data0;}
+		on getHead from init0 to init0 provided true do {}
+		on dequeue from place0 to init0 provided true do {data0 = NIL;
+head = NIL;}
+		on getHead from place0 to place0 provided true do {}
+		on enqueue from place0 to place1 provided true do {data1 = elem;}
+		on dequeue from place1 to place0 provided true do {data0 = data1;
+data1 = NIL;
+head = data0;}
+		on enqueue from place1 to place2 provided true do {data2 = elem;}
+		on getHead from place1 to place1 provided true do {}
+		on dequeue from place2 to place1 provided true do {data0 = data1;
+data1 = data2;
+data2 = NIL;
+head = data0;}
+		on enqueue from place2 to place3 provided true do {data3 = elem;}
+		on getHead from place2 to place2 provided true do {}
+		on dequeue from place3 to place2 provided true do {data0 = data1;
+data1 = data2;
+data2 = data3;
+data3 = NIL;
+head = data0;}
+		on enqueue from place3 to place4 provided true do {data4 = elem;}
+		on getHead from place3 to place3 provided true do {}
+		on dequeue from place4 to place3 provided true do {data0 = data1;
+data1 = data2;
+data2 = data3;
+data3 = data4;
+data4 = NIL;
+head = data0;}
+		on getHead from place4 to place4 provided true do {}
+
+	end
+
+
+	compound type ARM
+		component exti_thread_dispatcher exti_thread_dispatcher
+		component mainframe_interrupt_isr mainframe_interrupt_isr
+		component wait_for_ba wait_for_ba
+		component last_mf last_mf
+		component current_mf current_mf
+		component mvb_device_status_16 mvb_device_status_16
+		component ba_mf ba_mf
+		component FPGA FPGA
+		component mfprocess_handle mfprocess_handle
+		component slaveframe_interrupt_isr slaveframe_interrupt_isr
+		component sfprocess_handle sfprocess_handle
+		component last_sf last_sf
+		component current_sf current_sf
+		component sync_interrupt_dsr sync_interrupt_dsr
+		component sync_interrupt_isr sync_interrupt_isr
+		component sync_checkbit sync_checkbit
+		component syncprocess_handle syncprocess_handle
+		component errorframe_interrupt_isr errorframe_interrupt_isr
+		component frame_checkbit frame_checkbit
+		component errorframe_interrupt_dsr errorframe_interrupt_dsr
+		component timeout_interrupt_isr timeout_interrupt_isr
+		component timeout_interrupt_dsr timeout_interrupt_dsr
+		component standup_flag standup_flag
+		component supervisory_interrupt_isr supervisory_interrupt_isr
+		component supervisory_interrupt_handle supervisory_interrupt_handle
+		component md_notime md_notime
+		component notime_interrupt_isr notime_interrupt_isr
+		component ISR_Stack ISR_Stack
+		component DSR_Queue DSR_Queue
+
+		connector R2Param1Int _connector0(mainframe_interrupt_isr.W_last_mf, last_mf.W)
+		connector R2Param1Int _connector2(current_mf.R, mainframe_interrupt_isr.R_current_mf)
+		connector R2Param1Int _connector3(mainframe_interrupt_isr.W_current_mf, current_mf.W)
+		connector R2Param1Int _connector4(ba_mf.R, mainframe_interrupt_isr.R_ba_mf)
+		connector R2Param1Int _connector6(mainframe_interrupt_isr.W_mvb_device_status_16, mvb_device_status_16.W)
+		connector R2Param1Int _connector7(mvb_device_status_16.R, mainframe_interrupt_isr.R_mvb_device_status_16)
+		connector R2Param1Bool _connector9(mainframe_interrupt_isr.W_wait_for_ba, wait_for_ba.W)
+		connector rendezvous _connector10(exti_thread_dispatcher.interrupt_mf_launch, mainframe_interrupt_isr.launch)
+		connector rendezvous _connector11(mainframe_interrupt_isr.terminate, exti_thread_dispatcher.interrupt_mf_terminate)
+		connector rendezvous _connector15(exti_thread_dispatcher.interrupt_sf_launch, slaveframe_interrupt_isr.launch)
+		connector rendezvous _connector16(exti_thread_dispatcher.interrupt_sf_terminate, slaveframe_interrupt_isr.terminate)
+		connector R2Param1Int _connector18(slaveframe_interrupt_isr.W_last_sf, last_sf.W)
+		connector R2Param1Int _connector19(current_sf.R, slaveframe_interrupt_isr.R_current_sf)
+		connector R2Param1Int _connector20(slaveframe_interrupt_isr.W_current_sf, current_sf.W)
+		connector rendezvous _connector21(sync_interrupt_isr.launch, exti_thread_dispatcher.interrupt_sync_launch)
+		connector rendezvous _connector22(sync_interrupt_isr.terminate, exti_thread_dispatcher.interrupt_sync_terminate)
+		connector R2Param1Int _connector23(sync_interrupt_isr.W_sync_checkbit, sync_checkbit.W)
+		connector rendezvous _connector25(syncprocess_handle.launch, sync_interrupt_dsr.syncprocess_handle)
+		connector rendezvous _connector26(sync_interrupt_dsr.launch, exti_thread_dispatcher.interrupt_sync_dsr_launch)
+		connector rendezvous _connector27(sync_interrupt_dsr.terminate, exti_thread_dispatcher.interrupt_sync_dsr_terminate)
+		connector rendezvous _connector28(errorframe_interrupt_isr.launch, exti_thread_dispatcher.interrupt_error_launch)
+		connector rendezvous _connector29(errorframe_interrupt_isr.terminate, exti_thread_dispatcher.interrupt_error_terminate)
+		connector R2Param1Int _connector31(errorframe_interrupt_isr.W_frame_checkbit, frame_checkbit.W)
+		connector rendezvous _connector32(errorframe_interrupt_dsr.launch, exti_thread_dispatcher.interrupt_error_dsr_launch)
+		connector rendezvous _connector33(errorframe_interrupt_dsr.terminate, exti_thread_dispatcher.interrupt_error_dsr_terminate)
+		connector R2Param1Int _connector34(frame_checkbit.R, errorframe_interrupt_dsr.R_frame_checkbit)
+		connector R2Param1Int _connector36(mvb_device_status_16.R, errorframe_interrupt_dsr.R_mvb_device_status_16)
+		connector R2Param1Int _connector37(errorframe_interrupt_dsr.W_mvb_device_status_16, mvb_device_status_16.W)
+		connector rendezvous _connector38(timeout_interrupt_isr.launch, exti_thread_dispatcher.interrupt_timeout_launch)
+		connector rendezvous _connector39(timeout_interrupt_isr.terminate, exti_thread_dispatcher.interrupt_timeout_terminate)
+		connector R2Param1Int _connector41(timeout_interrupt_isr.W_frame_checkbit, frame_checkbit.W)
+		connector rendezvous _connector42(timeout_interrupt_dsr.launch, exti_thread_dispatcher.interrupt_timeout_dsr_launch)
+		connector rendezvous _connector43(timeout_interrupt_dsr.terminate, exti_thread_dispatcher.interrupt_timeout_dsr_terminate)
+		connector R2Param1Int _connector44(frame_checkbit.R, timeout_interrupt_dsr.R_frame_checkbit)
+		connector R2Param1Int _connector46(standup_flag.R, timeout_interrupt_dsr.R_standup_flag)
+		connector R2Param1Int _connector47(timeout_interrupt_dsr.W_standup_flag, standup_flag.W)
+		connector R2Param1Bool _connector49(timeout_interrupt_dsr.W_wait_for_ba, wait_for_ba.W)
+		connector R2Param1Int _connector50(current_mf.R, timeout_interrupt_dsr.R_current_mf)
+		connector rendezvous _connector52(exti_thread_dispatcher.interrupt_supervisory_launch, supervisory_interrupt_isr.launch)
+		connector rendezvous _connector53(exti_thread_dispatcher.interrupt_supervisory_terminate, supervisory_interrupt_isr.terminate)
+		connector rendezvous _connector54(supervisory_interrupt_isr.supervisory_interrupt_handle, supervisory_interrupt_handle.launch)
+		connector R2Param1Int _connector56(supervisory_interrupt_isr.W_md_notime, md_notime.W)
+		connector rendezvous _connector57(exti_thread_dispatcher.interrupt_notime_launch, notime_interrupt_isr.launch)
+		connector rendezvous _connector58(exti_thread_dispatcher.interrupt_notime_terminate, notime_interrupt_isr.terminate)
+		connector R2Param1Int _connector60(notime_interrupt_isr.W_md_notime, md_notime.W)
+		connector R2Param1Int _connector13(mainframe_interrupt_isr.mfprocess_handle, mfprocess_handle.launch)
+		connector R2Param1Int _connector14(slaveframe_interrupt_isr.sfprocess_handle, sfprocess_handle.launch)
+		connector R2Param1Int _connector12(FPGA.out, exti_thread_dispatcher.in)
+		connector rendezvous _connector61(exti_thread_dispatcher.pop, ISR_Stack.pop)
+		connector R2Param1Int _connector62(exti_thread_dispatcher.push, ISR_Stack.push)
+		connector R2Param1Int _connector63(ISR_Stack.getTop, exti_thread_dispatcher.getTop)
+		connector rendezvous _connector64(exti_thread_dispatcher.dequeue, DSR_Queue.dequeue)
+		connector R2Param1Int _connector65(exti_thread_dispatcher.enqueue, DSR_Queue.enqueue)
+		connector R2Param1Int _connector66(DSR_Queue.getHead, exti_thread_dispatcher.getHead)
+
+
+	end
+
+	component ARM m
+	
+	INVARSPEC (errorframe_interrupt_dsr.shared_mvb_device_status_16 == 0) | (errorframe_interrupt_dsr.shared_mvb_device_status_16 == 6)
+end
