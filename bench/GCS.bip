@@ -415,9 +415,6 @@ model BIP_MODEL
 
 	//(54:20)װ�õ�λ����ԶС�����ֵ��INVARSPEC 25 > G1.CurPos
 	INVARSPEC ((true & !(G1.CurPos1)) | ((true == G1.CurPos1) & ((true & !(G1.CurPos2)) | ((true == G1.CurPos2) & ((false & !(G1.CurPos3)) | ((false == G1.CurPos3) & ((false & !(G1.CurPos4)) | ((false == G1.CurPos4) & (true & (!G1.CurPos5))))))))))
-		
-	//װ�õ�λ����Զ������Сֵ��INVARSPEC G1.CurPos > 5, actually, G1.CurPos >= 8 forever
-	INVARSPEC ((G1.CurPos1 & !(false)) | ((G1.CurPos1 == false) & ((G1.CurPos2 & !(false)) | ((G1.CurPos2 == false) & ((G1.CurPos3 & !(true)) | ((G1.CurPos3 == true) & ((G1.CurPos4 & !(false)) | ((G1.CurPos4 == false) & (G1.CurPos5 & (!true))))))))))
 	
 	//(102: 44)װ������Ӳ����λ��Ӳ����λʱ�ٶ�Ϊ0��INVARSPEC (G1.LmtFlag == 1 || G1.LmtFlag == 4)->(G1.CurSpeed == 0)
 	INVARSPEC (!(((G1.LmtFlag1 == false) & (G1.LmtFlag2 == false) & (G1.LmtFlag3 == true)) | ((G1.LmtFlag1 == true) & (G1.LmtFlag2 == false) & (G1.LmtFlag3 == false)))) | ((G1.CurSpeed1 == false) & (G1.CurSpeed2 == false) & (G1.CurSpeed3 == false))
